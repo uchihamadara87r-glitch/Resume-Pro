@@ -1,0 +1,2077 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Analyzer Pro v5.1</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        
+        * { font-family: 'Inter', sans-serif; }
+        
+        .drop-zone {
+            transition: all 0.3s ease;
+            background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' rx='16' ry='16' stroke='%23CBD5E1FF' stroke-width='2' stroke-dasharray='12%2c 12' stroke-dashoffset='0' stroke-linecap='square'/%3e%3c/svg%3e");
+        }
+        
+        .drop-zone.drag-over {
+            background-color: #EFF6FF;
+            background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' rx='16' ry='16' stroke='%233B82F6FF' stroke-width='3' stroke-dasharray='12%2c 12' stroke-dashoffset='0' stroke-linecap='square'/%3e%3c/svg%3e");
+            transform: scale(1.02);
+        }
+        
+        .score-ring { transition: stroke-dashoffset 1.5s ease-out; }
+        
+        .fade-in { animation: fadeIn 0.6s ease-out forwards; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .progress-fill { transition: width 0.8s ease-out; }
+        
+        .suggestion-card {
+            transition: all 0.3s ease;
+        }
+        
+        .suggestion-card:hover { transform: translateX(5px); }
+        
+        .keyword-tag {
+            animation: popIn 0.4s ease-out forwards;
+            opacity: 0;
+        }
+        
+        @keyframes popIn {
+            from { opacity: 0; transform: scale(0.8); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        
+        .tab-active {
+            background-color: #2563EB;
+            color: white;
+        }
+        
+        .tab-inactive {
+            background-color: #F1F5F9;
+            color: #64748B;
+        }
+        
+        .tab-inactive:hover { background-color: #E2E8F0; }
+        
+        .textarea-focus:focus {
+            outline: none;
+            border-color: #3B82F6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .history-item { transition: all 0.2s ease; }
+        .history-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+        
+        .modal.active { display: flex; }
+        
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            max-width: 700px;
+            width: 92%;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            padding: 16px 24px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 500;
+            z-index: 200;
+            transform: translateX(150%);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+        }
+        
+        .toast.show { transform: translateX(0); }
+        
+        .pulse-ring {
+            animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+        
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 0.8; }
+            100% { transform: scale(1.3); opacity: 0; }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast bg-green-600">
+        <i class="fas fa-check-circle mr-2"></i>
+        <span id="toastMessage">Berjaya!</span>
+    </div>
+
+    <!-- Header -->
+    <header class="bg-white/80 backdrop-blur-md shadow-sm border-b border-slate-200 sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="relative">
+                    <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white">
+                        <i class="fas fa-file-alt text-lg"></i>
+                    </div>
+                    <div class="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-slate-800">Resume Analyzer Pro</h1>
+                    <p class="text-xs text-slate-500">Analisis ATS & Penambahbaikan v5.1</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="showHistory()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center gap-2 group">
+                    <i class="fas fa-history group-hover:rotate-12 transition-transform"></i>
+                    <span class="hidden sm:inline">Sejarah</span>
+                    <span id="historyCount" class="bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full font-bold">0</span>
+                </button>
+                <button onclick="showCompareModal()" class="bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center gap-2">
+                    <i class="fas fa-exchange-alt"></i>
+                    <span class="hidden sm:inline">Banding</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+        
+        <!-- Hero Section -->
+        <div id="heroSection" class="text-center mb-8 fade-in">
+            <h2 class="text-3xl sm:text-4xl font-bold text-slate-800 mb-3">Analisis Resume Anda</h2>
+            <p class="text-slate-500 max-w-lg mx-auto">Muat naik resume (PDF/DOC/DOCX/TXT) atau tampal teks untuk analisis ATS komprehensif dengan saranan penambahbaikan.</p>
+        </div>
+
+        <!-- Input Section -->
+        <div id="uploadSection" class="mb-8 max-w-3xl mx-auto">
+            <!-- Tabs -->
+            <div class="flex gap-1.5 mb-6 bg-slate-100/80 p-1.5 rounded-2xl w-fit mx-auto backdrop-blur-sm">
+                <button onclick="switchTab('file')" id="tabFile" class="tab-active px-5 sm:px-6 py-2.5 rounded-xl font-medium text-sm transition-all flex items-center gap-2">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <span>Muat Naik</span>
+                </button>
+                <button onclick="switchTab('text')" id="tabText" class="tab-inactive px-5 sm:px-6 py-2.5 rounded-xl font-medium text-sm transition-all flex items-center gap-2">
+                    <i class="fas fa-keyboard"></i>
+                    <span>Teks Terus</span>
+                </button>
+                <button onclick="switchTab('jobmatch')" id="tabJobMatch" class="tab-inactive px-5 sm:px-6 py-2.5 rounded-xl font-medium text-sm transition-all flex items-center gap-2">
+                    <i class="fas fa-bullseye"></i>
+                    <span>Job Match</span>
+                </button>
+            </div>
+
+            <!-- File Upload Panel -->
+            <div id="panelFile">
+                <div 
+                    id="dropZone"
+                    class="drop-zone rounded-3xl p-10 sm:p-14 text-center cursor-pointer bg-white shadow-lg hover:shadow-xl transition-shadow"
+                    onclick="document.getElementById('fileInput').click()"
+                >
+                    <input 
+                        type="file" 
+                        id="fileInput" 
+                        accept=".pdf,.txt,.doc,.docx" 
+                        class="hidden" 
+                        onchange="handleFileSelect(event)"
+                        aria-label="Pilih fail resume"
+                    >
+                    <div class="relative w-24 h-24 mx-auto mb-6">
+                        <div class="absolute inset-0 bg-blue-100 rounded-full pulse-ring"></div>
+                        <div class="relative w-24 h-24 bg-blue-50 rounded-full flex items-center justify-center">
+                            <i class="fas fa-cloud-upload-alt text-4xl text-blue-500"></i>
+                        </div>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-700 mb-2">Letak atau Klik untuk Muat Naik</h3>
+                    <p class="text-slate-500 text-sm mb-6">Sokong PDF, DOC, DOCX & TXT • Maksimum 10MB</p>
+                    <div class="flex justify-center gap-2 mb-6 flex-wrap">
+                        <span class="bg-red-50 text-red-600 border border-red-100 px-3 py-1.5 rounded-full text-xs font-semibold">
+                            <i class="fas fa-file-pdf mr-1"></i>PDF
+                        </span>
+                        <span class="bg-blue-50 text-blue-600 border border-blue-100 px-3 py-1.5 rounded-full text-xs font-semibold">
+                            <i class="fas fa-file-word mr-1"></i>DOC/DOCX
+                        </span>
+                        <span class="bg-green-50 text-green-600 border border-green-100 px-3 py-1.5 rounded-full text-xs font-semibold">
+                            <i class="fas fa-file-alt mr-1"></i>TXT
+                        </span>
+                    </div>
+                    <button class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-semibold transition-all shadow-lg shadow-blue-600/25 hover:shadow-blue-600/40">
+                        Pilih Fail
+                    </button>
+                </div>
+            </div>
+
+            <!-- Text Input Panel -->
+            <div id="panelText" class="hidden">
+                <div class="bg-white rounded-3xl shadow-lg p-6 sm:p-8">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-800">Teks Resume</h3>
+                            <p class="text-xs text-slate-400">Tampal atau taip teks resume anda</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="loadSampleText()" class="text-sm bg-purple-50 text-purple-600 hover:bg-purple-100 px-3 py-1.5 rounded-lg font-medium transition-colors">
+                                <i class="fas fa-magic mr-1"></i>Contoh
+                            </button>
+                            <button onclick="clearText()" class="text-sm bg-slate-50 text-slate-500 hover:bg-slate-100 px-3 py-1.5 rounded-lg font-medium transition-colors">
+                                <i class="fas fa-trash-alt mr-1"></i>Kosong
+                            </button>
+                        </div>
+                    </div>
+                    <textarea 
+                        id="textInput" 
+                        class="textarea-focus w-full h-72 sm:h-80 p-4 border border-slate-200 rounded-2xl resize-none text-sm leading-relaxed text-slate-700 bg-slate-50/50"
+                        placeholder="Tampal teks resume anda di sini..."
+                    ></textarea>
+                    <div class="flex items-center justify-between mt-4">
+                        <div class="flex items-center gap-2 text-xs text-slate-400">
+                            <i class="fas fa-font"></i>
+                            <span id="charCount">0 aksara</span>
+                            <span class="text-slate-300">|</span>
+                            <span id="wordCountInput">0 perkataan</span>
+                        </div>
+                        <button onclick="analyzeTextInput()" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-semibold transition-all shadow-lg shadow-blue-600/25 hover:shadow-blue-600/40 flex items-center gap-2">
+                            <i class="fas fa-search"></i> Analisis
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Job Match Panel -->
+            <div id="panelJobMatch" class="hidden">
+                <div class="bg-white rounded-3xl shadow-lg p-6 sm:p-8">
+                    <div class="flex items-center gap-3 mb-5">
+                        <div class="w-10 h-10 bg-pink-50 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-bullseye text-pink-500"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-800">Penyepadanan Jawatan</h3>
+                            <p class="text-xs text-slate-400">Banding resume anda dengan keperluan jawatan</p>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="text-sm font-semibold text-slate-700 mb-2 block">Teks Resume</label>
+                            <textarea id="jobMatchResume" class="textarea-focus w-full h-40 p-3 border border-slate-200 rounded-xl resize-none text-sm bg-slate-50/50" placeholder="Tampal teks resume anda di sini..."></textarea>
+                        </div>
+                        <div>
+                            <label class="text-sm font-semibold text-slate-700 mb-2 block">Kemahiran Diperlukan (satu setiap baris)</label>
+                            <textarea id="jobMatchSkills" class="textarea-focus w-full h-40 p-3 border border-slate-200 rounded-xl resize-none text-sm bg-slate-50/50" placeholder="JavaScript&#10;React&#10;Node.js&#10;AWS&#10;Docker&#10;..."></textarea>
+                        </div>
+                    </div>
+                    <button onclick="performJobMatch()" class="w-full bg-pink-600 hover:bg-pink-700 text-white py-3 rounded-xl font-semibold transition-all shadow-lg shadow-pink-600/25 flex items-center justify-center gap-2">
+                        <i class="fas fa-calculator"></i> Semak Penyepadanan
+                    </button>
+                    <div id="jobMatchResult" class="mt-6 hidden"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loadingSection" class="hidden mb-8 max-w-xl mx-auto">
+            <div class="bg-white rounded-3xl shadow-xl p-10 text-center">
+                <div class="relative w-20 h-20 mx-auto mb-6">
+                    <div class="absolute inset-0 border-4 border-blue-100 rounded-full"></div>
+                    <div class="absolute inset-0 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <i class="fas fa-cog text-blue-500 text-2xl animate-pulse"></i>
+                    </div>
+                </div>
+                <h3 class="text-xl font-bold text-slate-700 mb-2">Sedang Menganalisis</h3>
+                <p class="text-slate-500 mb-6" id="loadingText">Membaca kandungan...</p>
+                <div class="max-w-sm mx-auto bg-slate-100 rounded-full h-3 overflow-hidden">
+                    <div id="progressBar" class="progress-fill bg-gradient-to-r from-blue-500 to-blue-600 h-full rounded-full" style="width: 0%"></div>
+                </div>
+                <p class="text-xs text-slate-400 mt-3" id="progressPercent">0%</p>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="resultsSection" class="hidden space-y-6">
+            
+            <!-- Score Overview -->
+            <div class="bg-white rounded-3xl shadow-xl p-6 sm:p-10 fade-in">
+                <div class="flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
+                    <div class="relative flex-shrink-0">
+                        <svg class="w-44 h-44 sm:w-52 sm:h-52 transform -rotate-90">
+                            <circle cx="50%" cy="50%" r="45%" stroke="#F1F5F9" stroke-width="10" fill="none"/>
+                            <circle 
+                                id="scoreCircle"
+                                cx="50%" 
+                                cy="50%" 
+                                r="45%" 
+                                stroke="currentColor" 
+                                stroke-width="10" 
+                                fill="none" 
+                                stroke-dasharray="283"
+                                stroke-dashoffset="283"
+                                stroke-linecap="round"
+                                class="score-ring text-blue-600"
+                            />
+                        </svg>
+                        <div class="absolute inset-0 flex flex-col items-center justify-center">
+                            <span id="scoreValue" class="text-5xl sm:text-6xl font-extrabold text-slate-800">0</span>
+                            <span class="text-sm text-slate-400 font-medium">/ 100</span>
+                        </div>
+                        <div id="scoreBadge" class="absolute -top-2 -right-2 w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-lg hidden">
+                            <span id="scoreBadgeText">A+</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex-1 w-full">
+                        <div class="flex items-center gap-3 mb-2">
+                            <h2 class="text-2xl sm:text-3xl font-bold text-slate-800">Skor ATS</h2>
+                            <span id="scoreVerdict" class="px-3 py-1.5 rounded-full text-sm font-bold">Menganalisis...</span>
+                        </div>
+                        <p class="text-slate-500 mb-8 text-sm">Berdasarkan 5 kriteria utama yang dinilai oleh sistem ATS moden.</p>
+                        
+                        <div class="space-y-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center text-blue-500"><i class="fas fa-envelope text-sm"></i></div>
+                                <div class="flex-1">
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span class="text-slate-600 font-medium">Maklumat Peribadi</span>
+                                        <span id="scoreContact" class="font-bold text-slate-800">0/20</span>
+                                    </div>
+                                    <div class="bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                                        <div id="barContact" class="progress-fill bg-gradient-to-r from-blue-400 to-blue-600 h-full rounded-full" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 bg-green-50 rounded-lg flex items-center justify-center text-green-500"><i class="fas fa-list-ul text-sm"></i></div>
+                                <div class="flex-1">
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span class="text-slate-600 font-medium">Struktur & Seksyen</span>
+                                        <span id="scoreStructure" class="font-bold text-slate-800">0/25</span>
+                                    </div>
+                                    <div class="bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                                        <div id="barStructure" class="progress-fill bg-gradient-to-r from-green-400 to-green-600 h-full rounded-full" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 bg-purple-50 rounded-lg flex items-center justify-center text-purple-500"><i class="fas fa-key text-sm"></i></div>
+                                <div class="flex-1">
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span class="text-slate-600 font-medium">Kata Kunci & Kemahiran</span>
+                                        <span id="scoreKeywords" class="font-bold text-slate-800">0/25</span>
+                                    </div>
+                                    <div class="bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                                        <div id="barKeywords" class="progress-fill bg-gradient-to-r from-purple-400 to-purple-600 h-full rounded-full" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 bg-orange-50 rounded-lg flex items-center justify-center text-orange-500"><i class="fas fa-chart-line text-sm"></i></div>
+                                <div class="flex-1">
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span class="text-slate-600 font-medium">Pencapaian Kuantitatif</span>
+                                        <span id="scoreMetrics" class="font-bold text-slate-800">0/20</span>
+                                    </div>
+                                    <div class="bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                                        <div id="barMetrics" class="progress-fill bg-gradient-to-r from-orange-400 to-orange-600 h-full rounded-full" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 bg-red-50 rounded-lg flex items-center justify-center text-red-500"><i class="fas fa-ruler text-sm"></i></div>
+                                <div class="flex-1">
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span class="text-slate-600 font-medium">Format & Panjang</span>
+                                        <span id="scoreFormat" class="font-bold text-slate-800">0/10</span>
+                                    </div>
+                                    <div class="bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                                        <div id="barFormat" class="progress-fill bg-gradient-to-r from-red-400 to-red-600 h-full rounded-full" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="w-full lg:w-72 flex-shrink-0 bg-slate-50 rounded-2xl p-5">
+                        <h4 class="text-sm font-bold text-slate-600 mb-4 text-center">Perbandingan Industri</h4>
+                        <div class="relative h-48">
+                            <canvas id="comparisonChart"></canvas>
+                        </div>
+                        <div class="mt-3 flex items-center justify-center gap-4 text-xs">
+                            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-blue-500"></span>Anda</span>
+                            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-slate-300"></span>Purata</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 fade-in">
+                <div class="bg-white rounded-2xl shadow-md p-5 text-center">
+                    <div class="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center mx-auto mb-3"><i class="fas fa-file-word text-blue-500 text-lg"></i></div>
+                    <p class="text-2xl font-bold text-slate-800" id="statWordCount">0</p>
+                    <p class="text-xs text-slate-500 mt-1">Perkataan</p>
+                </div>
+                <div class="bg-white rounded-2xl shadow-md p-5 text-center">
+                    <div class="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center mx-auto mb-3"><i class="fas fa-layer-group text-green-500 text-lg"></i></div>
+                    <p class="text-2xl font-bold text-slate-800" id="statSections">0</p>
+                    <p class="text-xs text-slate-500 mt-1">Seksyen</p>
+                </div>
+                <div class="bg-white rounded-2xl shadow-md p-5 text-center">
+                    <div class="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center mx-auto mb-3"><i class="fas fa-tags text-purple-500 text-lg"></i></div>
+                    <p class="text-2xl font-bold text-slate-800" id="statKeywords">0</p>
+                    <p class="text-xs text-slate-500 mt-1">Kata Kunci</p>
+                </div>
+                <div class="bg-white rounded-2xl shadow-md p-5 text-center">
+                    <div class="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center mx-auto mb-3"><i class="fas fa-bolt text-orange-500 text-lg"></i></div>
+                    <p class="text-2xl font-bold text-slate-800" id="statVerbs">0</p>
+                    <p class="text-xs text-slate-500 mt-1">Kata Kerja</p>
+                </div>
+            </div>
+
+            <!-- Readability Score -->
+            <div class="bg-white rounded-3xl shadow-lg p-6 sm:p-8 fade-in">
+                <div class="flex items-center gap-3 mb-5">
+                    <div class="w-10 h-10 bg-cyan-50 rounded-xl flex items-center justify-center"><i class="fas fa-book-reader text-cyan-500"></i></div>
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-800">Kebolehbacaan</h3>
+                        <p class="text-xs text-slate-400">Analisis tahap kesukaran teks</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="bg-slate-50 rounded-2xl p-5 text-center border border-slate-100">
+                        <p class="text-3xl font-bold text-cyan-600" id="readabilityScore">0</p>
+                        <p class="text-xs text-slate-500 mt-1">Skor Flesch</p>
+                        <p class="text-xs text-slate-400 mt-1" id="readabilityLevel">-</p>
+                    </div>
+                    <div class="bg-slate-50 rounded-2xl p-5 text-center border border-slate-100">
+                        <p class="text-3xl font-bold text-cyan-600" id="avgSentenceLength">0</p>
+                        <p class="text-xs text-slate-500 mt-1">Purata Ayat</p>
+                        <p class="text-xs text-slate-400 mt-1">Perkataan/ayat</p>
+                    </div>
+                    <div class="bg-slate-50 rounded-2xl p-5 text-center border border-slate-100">
+                        <p class="text-3xl font-bold text-cyan-600" id="totalSentences">0</p>
+                        <p class="text-xs text-slate-500 mt-1">Jumlah Ayat</p>
+                        <p class="text-xs text-slate-400 mt-1">Dikesan</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grammar Check -->
+            <div id="grammarSection" class="hidden fade-in">
+                <div class="bg-white rounded-3xl shadow-lg p-6 sm:p-8">
+                    <div class="flex items-center justify-between mb-5">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center"><i class="fas fa-spell-check text-indigo-500"></i></div>
+                            <div>
+                                <h3 class="text-lg font-bold text-slate-800">Penyemakan Tatabahasa</h3>
+                                <p class="text-xs text-slate-500">Semakan automatik asas</p>
+                            </div>
+                        </div>
+                        <span id="grammarScore" class="px-4 py-2 rounded-full text-sm font-bold">Memeriksa...</span>
+                    </div>
+                    <div id="grammarResults" class="space-y-3 max-h-72 overflow-y-auto pr-2"></div>
+                </div>
+            </div>
+
+            <!-- Warnings -->
+            <div id="warningsSection" class="hidden fade-in">
+                <div class="bg-amber-50 border-2 border-amber-200 rounded-3xl p-6 sm:p-8">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center"><i class="fas fa-exclamation-triangle text-amber-600 text-lg"></i></div>
+                        <h3 class="text-lg font-bold text-amber-800">Amaran Penting</h3>
+                    </div>
+                    <div id="warningsList" class="space-y-3"></div>
+                </div>
+            </div>
+
+            <!-- Contact Info -->
+            <div class="bg-white rounded-3xl shadow-lg p-6 sm:p-8 fade-in">
+                <div class="flex items-center gap-3 mb-5">
+                    <div class="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center"><i class="fas fa-address-card text-blue-500"></i></div>
+                    <h3 class="text-lg font-bold text-slate-800">Maklumat Dikesan</h3>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="bg-slate-50 rounded-2xl p-5 border border-slate-100">
+                        <div class="flex items-center gap-2 mb-2"><i class="fas fa-envelope text-blue-400 text-sm"></i><p class="text-xs text-slate-400 uppercase tracking-wide font-semibold">E-mel</p></div>
+                        <p id="detectedEmail" class="font-semibold text-slate-800 text-sm break-all">-</p>
+                    </div>
+                    <div class="bg-slate-50 rounded-2xl p-5 border border-slate-100">
+                        <div class="flex items-center gap-2 mb-2"><i class="fas fa-phone text-green-400 text-sm"></i><p class="text-xs text-slate-400 uppercase tracking-wide font-semibold">Telefon</p></div>
+                        <p id="detectedPhone" class="font-semibold text-slate-800 text-sm">-</p>
+                    </div>
+                    <div class="bg-slate-50 rounded-2xl p-5 border border-slate-100">
+                        <div class="flex items-center gap-2 mb-2"><i class="fab fa-linkedin text-blue-400 text-sm"></i><p class="text-xs text-slate-400 uppercase tracking-wide font-semibold">LinkedIn</p></div>
+                        <p id="detectedLinkedIn" class="font-semibold text-slate-800 text-sm break-all">-</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sections -->
+            <div class="bg-white rounded-3xl shadow-lg p-6 sm:p-8 fade-in">
+                <div class="flex items-center gap-3 mb-5">
+                    <div class="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center"><i class="fas fa-sitemap text-green-500"></i></div>
+                    <div><h3 class="text-lg font-bold text-slate-800">Seksyen Dikesan</h3><p class="text-xs text-slate-400">Seksyen standard yang dikenal pasti</p></div>
+                </div>
+                <div id="sectionsGrid" class="flex flex-wrap gap-2"></div>
+            </div>
+
+            <!-- Keywords -->
+            <div class="bg-white rounded-3xl shadow-lg p-6 sm:p-8 fade-in">
+                <div class="flex items-center gap-3 mb-5">
+                    <div class="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center"><i class="fas fa-tags text-purple-500"></i></div>
+                    <div><h3 class="text-lg font-bold text-slate-800">Kata Kunci & Kemahiran</h3><p class="text-xs text-slate-400">Kata kunci teknikal dan kemahiran yang dikenal pasti</p></div>
+                </div>
+                <div id="keywordsGrid" class="flex flex-wrap gap-2 mb-4"></div>
+                <div id="missingKeywords" class="pt-4 border-t border-slate-100">
+                    <p class="text-sm text-slate-500 mb-3 font-medium">Kata kunci popular yang tiada:</p>
+                    <div id="missingKeywordsGrid" class="flex flex-wrap gap-2"></div>
+                </div>
+            </div>
+
+            <!-- Action Verbs -->
+            <div class="bg-white rounded-3xl shadow-lg p-6 sm:p-8 fade-in">
+                <div class="flex items-center gap-3 mb-5">
+                    <div class="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center"><i class="fas fa-bolt text-orange-500"></i></div>
+                    <div><h3 class="text-lg font-bold text-slate-800">Kata Kerja Aktif</h3><p class="text-xs text-slate-400">Kata kerja kuat yang menggambarkan pencapaian</p></div>
+                </div>
+                <div id="verbsGrid" class="flex flex-wrap gap-2"></div>
+                <div id="verbsByCategory" class="mt-4 pt-4 border-t border-slate-100 hidden">
+                    <p class="text-sm text-slate-500 mb-2 font-medium">Mengikut Kategori:</p>
+                    <div id="verbsCategoryGrid" class="space-y-2"></div>
+                </div>
+            </div>
+
+            <!-- Suggestions -->
+            <div class="bg-white rounded-3xl shadow-lg p-6 sm:p-8 fade-in">
+                <div class="flex items-center gap-3 mb-5">
+                    <div class="w-10 h-10 bg-yellow-50 rounded-xl flex items-center justify-center"><i class="fas fa-lightbulb text-yellow-500"></i></div>
+                    <div><h3 class="text-lg font-bold text-slate-800">Saranan Penambahbaikan</h3><p class="text-xs text-slate-400">Cadangan khusus untuk meningkatkan skor ATS</p></div>
+                </div>
+                <div id="suggestionsList" class="space-y-3"></div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex flex-col sm:flex-row justify-center gap-3 pb-8 fade-in">
+                <button onclick="resetAnalyzer()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-3.5 rounded-2xl font-semibold transition-all flex items-center justify-center gap-2">
+                    <i class="fas fa-redo"></i> Analisis Baru
+                </button>
+                <button onclick="saveToHistory()" class="bg-blue-50 hover:bg-blue-100 text-blue-700 px-6 py-3.5 rounded-2xl font-semibold transition-all flex items-center justify-center gap-2">
+                    <i class="fas fa-save"></i> Simpan ke Sejarah
+                </button>
+                <button onclick="exportReport()" class="bg-green-600 hover:bg-green-700 text-white px-8 py-3.5 rounded-2xl font-bold text-lg shadow-xl shadow-green-600/25 hover:shadow-green-600/40 transition-all flex items-center justify-center gap-2">
+                    <i class="fas fa-download"></i> Muat Turun Laporan
+                </button>
+            </div>
+        </div>
+
+        <!-- Error State -->
+        <div id="errorSection" class="hidden mb-8 max-w-xl mx-auto">
+            <div class="bg-red-50 border-2 border-red-200 rounded-3xl p-10 text-center">
+                <div class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-5">
+                    <i class="fas fa-times-circle text-3xl text-red-500"></i>
+                </div>
+                <h3 class="text-xl font-bold text-red-800 mb-3">Ralat Berlaku</h3>
+                <p id="errorMessage" class="text-red-600 mb-6 leading-relaxed"></p>
+                <button onclick="resetAnalyzer()" class="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-xl font-semibold transition-all shadow-lg shadow-red-600/25">
+                    <i class="fas fa-redo mr-2"></i>Cuba Lagi
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-6 mt-8">
+        <div class="max-w-6xl mx-auto px-6 text-center">
+            <p class="text-sm text-slate-400">Resume Analyzer Pro v5.1 • Dibangunkan untuk optimalisasi ATS</p>
+        </div>
+    </footer>
+
+    <!-- History Modal -->
+    <div id="historyModal" class="modal">
+        <div class="modal-content">
+            <div class="sticky top-0 bg-white border-b border-slate-100 p-6 flex items-center justify-between z-10">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center"><i class="fas fa-history text-blue-600"></i></div>
+                    <div><h2 class="text-xl font-bold text-slate-800">Sejarah Analisis</h2><p class="text-xs text-slate-400">Simpan sehingga 20 analisis</p></div>
+                </div>
+                <button onclick="closeHistory()" class="w-10 h-10 bg-slate-50 hover:bg-slate-100 rounded-xl flex items-center justify-center transition-colors"><i class="fas fa-times text-slate-500"></i></button>
+            </div>
+            <div class="p-6"><div id="historyList" class="space-y-3 max-h-[50vh] overflow-y-auto pr-2"></div></div>
+            <div class="sticky bottom-0 bg-white border-t border-slate-100 p-6">
+                <div class="grid grid-cols-3 gap-3">
+                    <button onclick="exportHistory()" class="bg-green-50 hover:bg-green-100 text-green-700 py-3 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2"><i class="fas fa-file-export"></i> Eksport</button>
+                    <button onclick="document.getElementById('importHistoryInput').click()" class="bg-blue-50 hover:bg-blue-100 text-blue-700 py-3 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2"><i class="fas fa-file-import"></i> Import</button>
+                    <button onclick="clearHistory()" class="bg-red-50 hover:bg-red-100 text-red-700 py-3 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2"><i class="fas fa-trash-alt"></i> Padam</button>
+                </div>
+                <input type="file" id="importHistoryInput" accept=".json" class="hidden" onchange="importHistory(event)">
+            </div>
+        </div>
+    </div>
+
+    <!-- Compare Modal -->
+    <div id="compareModal" class="modal">
+        <div class="modal-content">
+            <div class="sticky top-0 bg-white border-b border-slate-100 p-6 flex items-center justify-between z-10">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center"><i class="fas fa-exchange-alt text-blue-600"></i></div>
+                    <h2 class="text-xl font-bold text-slate-800">Banding Resume</h2>
+                </div>
+                <button onclick="closeCompareModal()" class="w-10 h-10 bg-slate-50 hover:bg-slate-100 rounded-xl flex items-center justify-center transition-colors"><i class="fas fa-times text-slate-500"></i></button>
+            </div>
+            <div class="p-6"><div id="compareContent"></div></div>
+        </div>
+    </div>
+
+    <script>
+        // PDF.js Setup
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        
+        // State
+        let analysisData = null;
+        let currentFile = null;
+        let currentTab = 'file';
+        let comparisonChart = null;
+        let grammarIssues = [];
+        const STORAGE_KEY = 'resumeAnalyzer_v5_history';
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            updateHistoryCount();
+            setupTextareaListeners();
+        });
+
+        function setupTextareaListeners() {
+            const textarea = document.getElementById('textInput');
+            if (textarea) {
+                textarea.addEventListener('input', () => {
+                    const text = textarea.value;
+                    document.getElementById('charCount').textContent = `${text.length} aksara`;
+                    document.getElementById('wordCountInput').textContent = `${text.trim().split(/\s+/).filter(w => w.length > 0).length} perkataan`;
+                });
+            }
+        }
+
+        // Toast
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            toast.className = `toast ${type === 'success' ? 'bg-green-600' : type === 'error' ? 'bg-red-600' : 'bg-blue-600'}`;
+            toastMessage.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // Tab Switching
+        function switchTab(tab) {
+            currentTab = tab;
+            const tabs = ['file', 'text', 'jobmatch'];
+            const tabIds = ['tabFile', 'tabText', 'tabJobMatch'];
+            const panelIds = ['panelFile', 'panelText', 'panelJobMatch'];
+            
+            tabs.forEach((t, i) => {
+                const el = document.getElementById(tabIds[i]);
+                if (t === tab) {
+                    el.className = 'tab-active px-5 sm:px-6 py-2.5 rounded-xl font-medium text-sm transition-all flex items-center gap-2';
+                } else {
+                    el.className = 'tab-inactive px-5 sm:px-6 py-2.5 rounded-xl font-medium text-sm transition-all flex items-center gap-2';
+                }
+                document.getElementById(panelIds[i]).classList.toggle('hidden', t !== tab);
+            });
+        }
+
+        function clearText() {
+            document.getElementById('textInput').value = '';
+            document.getElementById('charCount').textContent = '0 aksara';
+            document.getElementById('wordCountInput').textContent = '0 perkataan';
+        }
+
+        function loadSampleText() {
+            const sample = `AHMAD BIN ABDULLAH
+ahmad.abdullah@email.com | 012-3456789 | linkedin.com/in/ahmadabdullah
+
+RINGKASAN PROFESIONAL
+Pengurus Projek IT berpengalaman dengan 5 tahun dalam pembangunan perisian dan pengurusan pasukan. Berdedikasi untuk menghasilkan penyelesaian berkualiti tinggi dan memenuhi keperluan perniagaan.
+
+PENGALAMAN KERJA
+
+Senior Project Manager | Tech Solutions Sdn Bhd | 2019 - Kini
+• Mengepalai pasukan pembangunan 12 orang untuk pelbagai projek perisian
+• Meningkatkan kecekapan proses sebanyak 30% melalui automasi
+• Mengurus bajet projek bernilai RM2.5 juta dengan kejayaan 100%
+• Melaksanakan metodologi Agile/Scrum untuk penghantaran tepat masa
+• Berkolaborasi dengan stakeholders untuk memahami keperluan perniagaan
+
+Project Coordinator | Digital Innovate Sdn Bhd | 2017 - 2019
+• Menyelaras aktiviti projek antara pasukan teknikal dan pelanggan
+• Membangunkan dokumentasi projek dan laporan kemajuan
+• Mengurangkan masa penghantaran projek sebanyak 15%
+
+PENDIDIKAN
+
+Bachelor of Computer Science | Universiti Malaya | 2013 - 2017
+• CGPA: 3.75/4.00
+• Presiden Kelab Programming
+
+KEMAHIRAN
+
+Technical: JavaScript, Python, React, Node.js, SQL, AWS, Docker, Git, API Development
+Soft Skills: Leadership, Communication, Problem Solving, Time Management
+Tools: Jira, Trello, Microsoft Office, Figma
+
+SIJIL
+
+• AWS Certified Solutions Architect (2022)
+• Professional Scrum Master I (2021)
+• Certified Project Management Professional (2020)
+
+BAHASA
+
+• Bahasa Melayu (Fasih)
+• Bahasa Inggeris (Fasih)
+• Mandarin (Asas)`;
+            
+            document.getElementById('textInput').value = sample;
+            document.getElementById('charCount').textContent = `${sample.length} aksara`;
+            document.getElementById('wordCountInput').textContent = `${sample.trim().split(/\s+/).filter(w => w.length > 0).length} perkataan`;
+        }
+
+        // Drop Zone
+        const dropZone = document.getElementById('dropZone');
+        if (dropZone) {
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(e => dropZone.addEventListener(e, preventDefaults, false));
+            
+            function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+            
+            ['dragenter', 'dragover'].forEach(e => dropZone.addEventListener(e, () => dropZone.classList.add('drag-over'), false));
+            ['dragleave', 'drop'].forEach(e => dropZone.addEventListener(e, () => dropZone.classList.remove('drag-over'), false));
+            dropZone.addEventListener('drop', handleDrop, false);
+        }
+        
+        function handleDrop(e) {
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                document.getElementById('fileInput').files = files;
+                handleFileSelect({ target: { files } });
+            }
+        }
+
+        async function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const validExts = ['.pdf', '.txt', '.doc', '.docx'];
+            const isValid = validExts.some(ext => file.name.toLowerCase().endsWith(ext));
+            
+            if (!isValid) {
+                showError('Sila muat naik fail PDF, DOC, DOCX, atau TXT sahaja.');
+                return;
+            }
+            
+            if (file.size > 10 * 1024 * 1024) {
+                showError('Fail terlalu besar. Maksimum 10MB.');
+                return;
+            }
+            
+            currentFile = file;
+            
+            if (file.name.endsWith('.txt')) {
+                const reader = new FileReader();
+                reader.onload = e => processText(e.target.result, file);
+                reader.onerror = () => showError('Gagal membaca fail teks.');
+                reader.readAsText(file);
+            } else if (file.name.endsWith('.doc') || file.name.endsWith('.docx')) {
+                await analyzeDOC(file);
+            } else {
+                await analyzePDF(file);
+            }
+        }
+
+        async function analyzeDOC(file) {
+            showLoading();
+            updateProgress(20, 'Membaca fail Word...');
+            
+            try {
+                const arrayBuffer = await readFileAsArrayBuffer(file);
+                const result = await mammoth.extractRawText({ arrayBuffer });
+                updateProgress(70, 'Menganalisis kandungan...');
+                setTimeout(() => processText(result.value, file), 300);
+            } catch (error) {
+                console.error(error);
+                hideLoading();
+                showError('Gagal membaca fail Word. Pastikan fail tidak rosak.');
+            }
+        }
+
+        async function analyzePDF(file) {
+            showLoading();
+            
+            try {
+                const arrayBuffer = await readFileAsArrayBuffer(file);
+                updateProgress(20, 'Membaca fail PDF...');
+                
+                const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
+                updateProgress(40, 'Mengekstrak teks...');
+                
+                let fullText = '';
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const content = await page.getTextContent();
+                    fullText += content.items.map(item => item.str).join(' ') + ' ';
+                    updateProgress(40 + (i / pdf.numPages) * 35, `Muka surat ${i}/${pdf.numPages}...`);
+                }
+                
+                fullText = sanitizeResumeContent(fullText);
+                updateProgress(80, 'Menganalisis kandungan...');
+                processText(fullText, file);
+                
+            } catch (error) {
+                console.error(error);
+                hideLoading();
+                showError('Gagal membaca fail PDF. Pastikan fail tidak rosak, dilindungi kata laluan, atau bukan gambar terimbas (scanned).');
+            }
+        }
+
+        function analyzeTextInput() {
+            const text = document.getElementById('textInput').value.trim();
+            if (!text) {
+                showError('Sila masukkan teks resume terlebih dahulu.');
+                return;
+            }
+            processText(text, null);
+        }
+
+        function processText(text, file) {
+            showLoading();
+            const sanitized = sanitizeResumeContent(text);
+            updateProgress(85, 'Menganalisis kandungan...');
+            
+            setTimeout(() => {
+                analysisData = performAnalysis(sanitized, file || { size: sanitized.length * 2, name: 'Teks Terus' });
+                updateProgress(95, 'Memeriksa tatabahasa...');
+                
+                checkGrammar(sanitized).then(() => {
+                    updateProgress(100, 'Selesai!');
+                    setTimeout(() => {
+                        hideLoading();
+                        showResults();
+                    }, 400);
+                });
+            }, 200);
+        }
+
+        // ─── TAMBAHAN MODUL ANALISIS v5.1 ──────────────────────────────────────────────
+
+        // 1. FORMAT SANITIZER
+        function sanitizeResumeContent(rawText) {
+            if (!rawText || typeof rawText !== 'string') return '';
+            
+            return rawText
+                .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, '')
+                .replace(/[\u00A0\u1680\u180E\u2000-\u200B\u202F\u205F\u3000\uFEFF]/g, ' ')
+                .replace(/\r\n/g, '\n')
+                .replace(/\r/g, '\n')
+                .replace(/[ \t]+/g, ' ')
+                .replace(/\n{3,}/g, '\n\n')
+                .trim();
+        }
+
+        // 2. ACTION VERB ANALYZER v2
+        function analyzeActionVerbs(text) {
+            const verbCategories = {
+                leadership: ['led', 'managed', 'directed', 'supervised', 'oversaw', 'chaired', 'headed', 'governed', 'delegated', 'mentored', 'coached', 'guided', 'trained', 'motivated'],
+                creation: ['developed', 'created', 'designed', 'built', 'architected', 'engineered', 'programmed', 'coded', 'wrote', 'drafted', 'composed', 'formulated', 'established', 'founded', 'launched', 'initiated', 'pioneered', 'invented'],
+                improvement: ['improved', 'optimized', 'enhanced', 'upgraded', 'refined', 'streamlined', 'automated', 'simplified', 'modernized', 'transformed', 'revamped', 'restructured', 'redesigned', 'customized', 'tailored'],
+                achievement: ['achieved', 'accomplished', 'attained', 'delivered', 'executed', 'completed', 'fulfilled', 'realized', 'secured', 'won', 'earned', 'gained', 'obtained', 'reached', 'exceeded', 'surpassed', 'outperformed'],
+                analysis: ['analyzed', 'evaluated', 'assessed', 'audited', 'examined', 'investigated', 'researched', 'studied', 'reviewed', 'tested', 'measured', 'monitored', 'tracked', 'diagnosed', 'identified', 'discovered', 'uncovered'],
+                communication: ['presented', 'reported', 'communicated', 'negotiated', 'persuaded', 'influenced', 'advocated', 'promoted', 'marketed', 'published', 'documented', 'summarized', 'briefed', 'facilitated', 'mediated'],
+                operations: ['coordinated', 'organized', 'scheduled', 'planned', 'arranged', 'prepared', 'processed', 'handled', 'administered', 'operated', 'maintained', 'supported', 'served', 'assisted', 'collaborated', 'partnered'],
+                financial: ['budgeted', 'forecasted', 'projected', 'allocated', 'reduced', 'decreased', 'minimized', 'saved', 'conserved', 'generated', 'produced', 'increased', 'maximized', 'grew', 'expanded', 'scaled', 'multiplied'],
+                problemSolving: ['resolved', 'solved', 'fixed', 'repaired', 'corrected', 'eliminated', 'removed', 'prevented', 'avoided', 'mitigated', 'reduced', 'decreased', 'controlled', 'managed', 'contained', 'handled'],
+                bm_leadership: ['mengepalai', 'memimpin', 'mengurus', 'menyelia', 'mengawasi', 'mengajar', 'melatih'],
+                bm_creation: ['membangunkan', 'mencipta', 'mereka', 'membina', 'menubuhkan', 'melancarkan', 'memulakan'],
+                bm_improvement: ['meningkatkan', 'memperbaiki', 'mengoptimumkan', 'memudahkan', 'memodenkan', 'mengubahsuai'],
+                bm_achievement: ['mencapai', 'menyempurnakan', 'memenangi', 'memperoleh', 'melangkaui']
+            };
+            
+            const allVerbs = Object.values(verbCategories).flat();
+            const found = [];
+            const byCategory = {};
+            const lowerText = text.toLowerCase();
+            
+            for (const [category, verbs] of Object.entries(verbCategories)) {
+                const categoryFound = verbs.filter(v => {
+                    const regex = new RegExp(`\\b${v}\\b`, 'i');
+                    return regex.test(lowerText);
+                });
+                
+                if (categoryFound.length > 0) {
+                    byCategory[category] = categoryFound;
+                    found.push(...categoryFound);
+                }
+            }
+            
+            const uniqueFound = [...new Set(found)];
+            const score = Math.min((uniqueFound.length / 10) * 100, 100);
+            
+            return {
+                score: Math.round(score),
+                count: uniqueFound.length,
+                totalMatches: found.length,
+                found: uniqueFound,
+                byCategory,
+                suggestions: uniqueFound.length < 5 ? ['Tambah lebih kata kerja aktif untuk menggambarkan pencapaian anda'] : []
+            };
+        }
+
+        // 3. JOB MATCHER
+        function calculateJobMatch(resumeText, jobRequirements) {
+            const resumeSkills = extractSkillsFromText(resumeText);
+            const jobSkills = jobRequirements.map(s => s.toLowerCase().trim()).filter(s => s);
+            
+            const matched = [];
+            const missing = [];
+            const partial = [];
+            
+            for (const jobSkill of jobSkills) {
+                if (resumeSkills.includes(jobSkill)) {
+                    matched.push(jobSkill);
+                } else if (resumeSkills.some(rs => rs.includes(jobSkill) || jobSkill.includes(rs))) {
+                    partial.push({ required: jobSkill, found: resumeSkills.find(rs => rs.includes(jobSkill) || jobSkill.includes(rs)) });
+                } else {
+                    missing.push(jobSkill);
+                }
+            }
+            
+            const matchPercent = jobSkills.length > 0 ? Math.round((matched.length / jobSkills.length) * 100) : 0;
+            
+            return {
+                matchPercent,
+                matched,
+                missing,
+                partial,
+                totalRequired: jobSkills.length,
+                totalFound: matched.length,
+                resumeSkills,
+                verdict: matchPercent >= 80 ? 'Sangat Sesuai' : matchPercent >= 60 ? 'Sesuai' : matchPercent >= 40 ? 'Sederhana' : 'Kurang Sesuai'
+            };
+        }
+
+        function extractSkillsFromText(text) {
+            const skillKeywords = [
+                'javascript', 'python', 'java', 'c++', 'c#', 'php', 'ruby', 'go', 'rust', 'swift', 'kotlin',
+                'typescript', 'sql', 'html', 'css', 'sass', 'less', 'react', 'angular', 'vue', 'svelte', 'next.js', 'nuxt', 'django', 'flask', 'spring', 'laravel', 'express', 'node.js', 'jquery', 'bootstrap', 'tailwind',
+                'mysql', 'postgresql', 'mongodb', 'sqlite', 'redis', 'elasticsearch', 'firebase',
+                'aws', 'azure', 'gcp', 'docker', 'kubernetes', 'jenkins', 'terraform', 'ansible', 'nginx', 'ci/cd', 'devops', 'github', 'gitlab', 'bitbucket',
+                'machine learning', 'deep learning', 'tensorflow', 'pytorch', 'pandas', 'numpy', 'matplotlib', 'data science', 'big data', 'hadoop', 'spark', 'tableau', 'power bi',
+                'jira', 'trello', 'confluence', 'notion', 'slack', 'figma', 'photoshop', 'illustrator', 'excel', 'powerpoint', 'word', 'sap', 'salesforce',
+                'leadership', 'communication', 'teamwork', 'problem solving', 'critical thinking', 'time management', 'project management', 'agile', 'scrum'
+            ];
+            
+            const found = [];
+            const lowerText = text.toLowerCase();
+            
+            skillKeywords.forEach(skill => {
+                const regex = new RegExp(`\\b${skill.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+                if (regex.test(lowerText)) found.push(skill);
+            });
+            
+            return found;
+        }
+
+        function performJobMatch() {
+            const resumeText = document.getElementById('jobMatchResume').value.trim();
+            const skillsText = document.getElementById('jobMatchSkills').value.trim();
+            
+            if (!resumeText || !skillsText) {
+                showToast('Sila isi kedua-dua ruangan!', 'error');
+                return;
+            }
+            
+            const jobSkills = skillsText.split('\n').map(s => s.trim()).filter(s => s);
+            const result = calculateJobMatch(resumeText, jobSkills);
+            
+            const resultDiv = document.getElementById('jobMatchResult');
+            resultDiv.classList.remove('hidden');
+            
+            const colorClass = result.matchPercent >= 80 ? 'text-green-600' : result.matchPercent >= 60 ? 'text-yellow-600' : result.matchPercent >= 40 ? 'text-orange-600' : 'text-red-600';
+            const bgClass = result.matchPercent >= 80 ? 'bg-green-50 border-green-200' : result.matchPercent >= 60 ? 'bg-yellow-50 border-yellow-200' : result.matchPercent >= 40 ? 'bg-orange-50 border-orange-200' : 'bg-red-50 border-red-200';
+            
+            resultDiv.innerHTML = `
+                <div class="mt-6 ${bgClass} rounded-2xl p-6 border">
+                    <div class="text-center mb-6">
+                        <div class="text-5xl font-extrabold ${colorClass} mb-2">${result.matchPercent}%</div>
+                        <p class="text-lg font-bold text-slate-700">${result.verdict}</p>
+                        <p class="text-sm text-slate-500 mt-1">${result.totalFound} daripada ${result.totalRequired} kemahiran padan</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-white rounded-xl p-4">
+                            <p class="text-sm font-bold text-green-700 mb-3"><i class="fas fa-check-circle mr-2"></i>Kemahiran Padan (${result.matched.length})</p>
+                            <div class="flex flex-wrap gap-2">
+                                ${result.matched.length > 0 ? result.matched.map(s => `<span class="bg-green-100 text-green-700 px-3 py-1 rounded-lg text-xs font-medium">${s}</span>`).join('') : '<span class="text-slate-400 text-sm">Tiada</span>'}
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl p-4">
+                            <p class="text-sm font-bold text-red-700 mb-3"><i class="fas fa-times-circle mr-2"></i>Kemahiran Tiada (${result.missing.length})</p>
+                            <div class="flex flex-wrap gap-2">
+                                ${result.missing.length > 0 ? result.missing.map(s => `<span class="bg-red-100 text-red-700 px-3 py-1 rounded-lg text-xs font-medium">${s}</span>`).join('') : '<span class="text-slate-400 text-sm">Tiada - Semua kemahiran padan!</span>'}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    ${result.partial.length > 0 ? `
+                    <div class="mt-4 bg-white rounded-xl p-4">
+                        <p class="text-sm font-bold text-yellow-700 mb-3"><i class="fas fa-exclamation-circle mr-2"></i>Padan Separa (${result.partial.length})</p>
+                        <div class="flex flex-wrap gap-2">
+                            ${result.partial.map(p => `<span class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-lg text-xs font-medium">${p.required} ≈ ${p.found}</span>`).join('')}
+                        </div>
+                    </div>` : ''}
+                </div>
+            `;
+        }
+
+        // 4. READABILITY SCORE
+        function calculateReadability(text) {
+            const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
+            const words = text.split(/\s+/).filter(w => w.length > 0);
+            const syllables = words.reduce((count, word) => count + countSyllables(word), 0);
+            
+            const avgSentenceLength = words.length / sentences.length;
+            const avgSyllablesPerWord = syllables / words.length;
+            const score = 206.835 - (1.015 * avgSentenceLength) - (84.6 * avgSyllablesPerWord);
+            
+            return {
+                score: Math.max(0, Math.min(100, Math.round(score))),
+                avgSentenceLength: avgSentenceLength.toFixed(1),
+                avgSyllablesPerWord: avgSyllablesPerWord.toFixed(2),
+                totalSentences: sentences.length,
+                totalWords: words.length,
+                level: score >= 80 ? 'Mudah' : score >= 60 ? 'Sederhana' : score >= 40 ? 'Sukar' : 'Sangat Sukar'
+            };
+        }
+
+        function countSyllables(word) {
+            word = word.toLowerCase().replace(/[^a-z]/g, '');
+            if (word.length <= 3) return 1;
+            const vowels = 'aeiouy';
+            let count = 0;
+            let prevWasVowel = false;
+            
+            for (let i = 0; i < word.length; i++) {
+                const isVowel = vowels.includes(word[i]);
+                if (isVowel && !prevWasVowel) count++;
+                prevWasVowel = isVowel;
+            }
+            
+            if (word.endsWith('e')) count--;
+            if (word.endsWith('le') && word.length > 2 && !vowels.includes(word[word.length - 3])) count++;
+            
+            return Math.max(1, count);
+        }
+
+        // 5. KEYWORD DENSITY
+        function analyzeKeywordDensity(text, keywords) {
+            const words = text.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+            const totalWords = words.length;
+            const results = [];
+            
+            keywords.forEach(keyword => {
+                const regex = new RegExp(`\\b${keyword.toLowerCase()}\\b`, 'g');
+                const matches = (text.toLowerCase().match(regex) || []).length;
+                const density = totalWords > 0 ? ((matches / totalWords) * 100).toFixed(2) : 0;
+                
+                results.push({
+                    keyword,
+                    count: matches,
+                    density: parseFloat(density),
+                    status: matches === 0 ? 'Tiada' : matches === 1 ? 'Kurang' : matches <= 3 ? 'Optimum' : 'Berlebihan'
+                });
+            });
+            
+            return results.sort((a, b) => b.count - a.count);
+        }
+
+        // ─── END TAMBAHAN MODUL ──────────────────────────────────────────────
+
+        async function checkGrammar(text) {
+            grammarIssues = [];
+            
+            const checks = [
+                { pattern: /\s{2,}/g, type: 'error', msg: 'Ruang berlebihan dikesan' },
+                { pattern: /[A-Z]{4,}/g, type: 'warning', msg: 'Penggunaan huruf besar berlebihan' },
+                { pattern: /\b(its|it's|your|you're|their|they're|then|than|affect|effect|accept|except|principal|principle)\b/gi, type: 'warning', msg: 'Periksa penggunaan kata yang sering salah' }
+            ];
+            
+            checks.forEach(check => {
+                const matches = text.match(check.pattern);
+                if (matches) {
+                    grammarIssues.push({
+                        type: check.type,
+                        message: check.msg,
+                        count: [...new Set(matches)].length,
+                        examples: [...new Set(matches)].slice(0, 3)
+                    });
+                }
+            });
+            
+            const lines = text.split('\n');
+            lines.forEach((line, idx) => {
+                const trimmed = line.trim();
+                if (trimmed.length > 10 && /^[a-z]/.test(trimmed) && !trimmed.match(/^[\s•\-*\d]/)) {
+                    grammarIssues.push({
+                        type: 'warning',
+                        message: `Ayat mungkin perlu huruf besar di awal (baris ${idx + 1})`,
+                        count: 1,
+                        examples: [trimmed.substring(0, 40) + '...']
+                    });
+                }
+            });
+            
+            const words = text.toLowerCase().split(/\s+/);
+            for (let i = 0; i < words.length - 1; i++) {
+                if (words[i] === words[i + 1] && words[i].length > 2) {
+                    grammarIssues.push({
+                        type: 'error',
+                        message: `Perkataan berulang: "${words[i]}"`,
+                        count: 1,
+                        examples: [`... ${words[i]} ${words[i]} ...`]
+                    });
+                }
+            }
+            
+            return grammarIssues;
+        }
+
+        function readFileAsArrayBuffer(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => reject(reader.error);
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        function updateProgress(percent, text) {
+            document.getElementById('progressBar').style.width = percent + '%';
+            document.getElementById('loadingText').textContent = text;
+            document.getElementById('progressPercent').textContent = `${Math.round(percent)}%`;
+        }
+
+        function performAnalysis(text, file) {
+            const lowerText = text.toLowerCase();
+            
+            // 1. Contact Info (20 points)
+            const emailMatch = text.match(/[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}/);
+            const phoneMatch = text.match(/(\+?6?01[0-46-9][-\s]?\d{7,8}|\+?6?0[3-9][-\s]?\d{7,8})/);
+            const linkedInMatch = text.match(/linkedin\.com\/in\/[\w-]+/i);
+            
+            let contactScore = 0;
+            if (emailMatch) contactScore += 8;
+            if (phoneMatch) contactScore += 7;
+            if (linkedInMatch) contactScore
+                      // 5. Format & Length (10 points)
+            let formatScore = 10;
+            const warnings = [];
+            const wordCount = text.split(/\s+/).filter(w => w.length > 0).length;
+            
+            // Image-based PDF check
+            if (file && file.name.endsWith('.pdf')) {
+                const textDensity = text.length / file.size;
+                if (textDensity < 0.001 || (file.size > 500000 && text.length < 300)) {
+                    warnings.push('Resume anda mungkin berasaskan gambar (scanned). Sistem ATS sukar membaca format ini. Gunakan fail PDF berasaskan teks.');
+                    formatScore -= 5;
+                }
+            }
+            
+            // Length checks
+            if (wordCount < 150) {
+                warnings.push('Resume terlalu pendek. Cadangkan minimum 200-300 patah perkataan untuk kandungan yang mencukupi.');
+                formatScore -= 3;
+            } else if (wordCount > 800) {
+                warnings.push('Resume terlalu panjang. Idealnya 1-2 muka surat (300-600 patah perkataan). Pertimbangkan untuk memendekkan kandungan.');
+                formatScore -= 2;
+            }
+            
+            // Format checks
+            if (text.includes('\t') || /[^\n]\s{4,}[^\n]/.test(text)) {
+                warnings.push('Dikesan penggunaan tab/ruang berlebihan. Ini mungkin menunjukkan format jadual yang sukar dibaca oleh sistem ATS.');
+                formatScore -= 2;
+            }
+            
+            if (!/[•\-*]\s/.test(text)) {
+                warnings.push('Tiada penggunaan bullet point (•) dikesan. Bullet points membantu ATS mengenal pasti pencapaian dengan lebih baik.');
+                formatScore -= 1;
+            }
+            
+            formatScore = Math.max(0, formatScore);
+            
+            const totalScore = Math.round(contactScore + sectionScore + keywordScore + metricsScore + formatScore);
+            
+            // Generate suggestions
+            const suggestions = [];
+            
+            if (!emailMatch) suggestions.push('Tambah alamat e-mel profesional untuk memudahkan pihak majikan menghubungi anda.');
+            if (!phoneMatch) suggestions.push('Tambah nombor telefon untuk kebolehcapaian yang lebih baik.');
+            if (!linkedInMatch) suggestions.push('Tambah pautan LinkedIn untuk meningkatkan kredibiliti profesional anda.');
+            if (detectedSections.length < 4) suggestions.push('Tambah lebih seksyen seperti Ringkasan Profesional, Kemahiran, atau Sijil untuk struktur yang lebih lengkap.');
+            if (foundKeywords.length < 5) suggestions.push('Tambah lebih kata kunci teknikal dan kemahiran relevan dengan jawatan yang dipohon. Semak deskripsi jawatan untuk kata kunci utama.');
+            if (metricCount < 3) suggestions.push('Gunakan nombor dan peratusan untuk mengukur pencapaian (contoh: "Meningkatkan jualan sebanyak 20%" atau "Mengurus pasukan 10 orang").');
+            if (!/(summary|professional summary|ringkasan)/i.test(text)) suggestions.push('Tambah ringkasan profesional 2-3 ayat di awal resume untuk menarik perhatian perekrut.');
+            if (wordCount < 200) suggestions.push('Kembangkan kandungan resume dengan butiran pengalaman, tanggungjawab, dan pencapaian yang lebih spesifik.');
+            if (!/[•\-*]\s/.test(text)) suggestions.push('Gunakan bullet points untuk menyenaraikan pencapaian dan tanggungjawab. Ini meningkatkan kebolehbacaan dan skor ATS.');
+            if (!/\d+%|\d+\s*(ribu|juta)/i.test(text)) suggestions.push('Sertakan metrik kuantitatif untuk menunjukkan impak kerja anda (contoh: "Mengurangkan kos operasi sebanyak 15%").');
+            if (detectedSections.length > 0 && !detectedSections.some(s => s.includes('Skills'))) suggestions.push('Tambah seksyen Kemahiran untuk menyenaraikan kebolehan teknikal dan lembut anda.');
+            
+            const missingKeywords = allKeywords.filter(kw => !foundKeywords.some(fk => fk.word === kw)).slice(0, 12);
+            
+            // Calculate readability
+            const readability = calculateReadability(text);
+            
+            // Analyze action verbs
+            const verbAnalysis = analyzeActionVerbs(text);
+            
+            return {
+                score: totalScore,
+                scores: { contact: contactScore, structure: sectionScore, keywords: keywordScore, metrics: metricsScore, format: formatScore },
+                email: emailMatch ? emailMatch[0] : null,
+                phone: phoneMatch ? phoneMatch[0] : null,
+                linkedIn: linkedInMatch ? linkedInMatch[0] : null,
+                sections: detectedSections,
+                keywords: foundKeywords,
+                missingKeywords,
+                metrics: metricCount,
+                wordCount,
+                warnings,
+                suggestions,
+                fullText: text,
+                timestamp: new Date().toISOString(),
+                fileName: file ? file.name : 'Teks Terus',
+                readability,
+                verbAnalysis
+            };
+        }
+
+        function showLoading() {
+            document.getElementById('heroSection').classList.add('hidden');
+            document.getElementById('uploadSection').classList.add('hidden');
+            document.getElementById('resultsSection').classList.add('hidden');
+            document.getElementById('errorSection').classList.add('hidden');
+            document.getElementById('loadingSection').classList.remove('hidden');
+            updateProgress(0, 'Bersedia...');
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingSection').classList.add('hidden');
+        }
+
+        function showResults() {
+            const data = analysisData;
+            document.getElementById('resultsSection').classList.remove('hidden');
+            
+            // Animate score circle
+            setTimeout(() => {
+                const circle = document.getElementById('scoreCircle');
+                const circumference = 283;
+                const offset = circumference - (data.score / 100) * circumference;
+                circle.style.strokeDashoffset = offset;
+                
+                circle.classList.remove('text-blue-600', 'text-green-500', 'text-yellow-500', 'text-red-500');
+                if (data.score >= 80) circle.classList.add('text-green-500');
+                else if (data.score >= 60) circle.classList.add('text-yellow-500');
+                else circle.classList.add('text-red-500');
+            }, 100);
+            
+            // Score badge
+            const badge = document.getElementById('scoreBadge');
+            const badgeText = document.getElementById('scoreBadgeText');
+            badge.classList.remove('hidden');
+            if (data.score >= 90) { badgeText.textContent = 'A+'; badge.className = 'absolute -top-2 -right-2 w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-lg bg-green-500'; }
+            else if (data.score >= 80) { badgeText.textContent = 'A'; badge.className = 'absolute -top-2 -right-2 w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-lg bg-green-400'; }
+            else if (data.score >= 70) { badgeText.textContent = 'B'; badge.className = 'absolute -top-2 -right-2 w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-lg bg-yellow-400'; }
+            else if (data.score >= 60) { badgeText.textContent = 'C'; badge.className = 'absolute -top-2 -right-2 w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-lg bg-yellow-500'; }
+            else { badgeText.textContent = 'D'; badge.className = 'absolute -top-2 -right-2 w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-lg bg-red-500'; }
+            
+            animateValue('scoreValue', 0, data.score, 1500);
+            
+            // Verdict
+            const verdict = document.getElementById('scoreVerdict');
+            if (data.score >= 80) {
+                verdict.textContent = 'Excellent! Resume anda sangat optimized.';
+                verdict.className = 'px-4 py-1.5 rounded-full text-sm font-bold bg-green-100 text-green-700';
+            } else if (data.score >= 60) {
+                verdict.textContent = 'Baik, tetapi ada ruang untuk penambahbaikan.';
+                verdict.className = 'px-4 py-1.5 rounded-full text-sm font-bold bg-yellow-100 text-yellow-700';
+            } else {
+                verdict.textContent = 'Perlu penambahbaikan. Ikuti saranan di bawah.';
+                verdict.className = 'px-4 py-1.5 rounded-full text-sm font-bold bg-red-100 text-red-700';
+            }
+            
+            // Update bars
+            updateBar('scoreContact', 'barContact', data.scores.contact, 20);
+            updateBar('scoreStructure', 'barStructure', data.scores.structure, 25);
+            updateBar('scoreKeywords', 'barKeywords', data.scores.keywords, 25);
+            updateBar('scoreMetrics', 'barMetrics', data.scores.metrics, 20);
+            updateBar('scoreFormat', 'barFormat', data.scores.format, 10);
+            
+            // Quick stats
+            document.getElementById('statWordCount').textContent = data.wordCount;
+            document.getElementById('statSections').textContent = data.sections.length;
+            document.getElementById('statKeywords').textContent = data.keywords.length;
+            document.getElementById('statVerbs').textContent = data.verbAnalysis.count;
+            
+            // Contact info
+            document.getElementById('detectedEmail').textContent = data.email || 'Tiada dikesan';
+            document.getElementById('detectedPhone').textContent = data.phone || 'Tiada dikesan';
+            document.getElementById('detectedLinkedIn').textContent = data.linkedIn || 'Tiada dikesan';
+            
+            // Warnings
+            const warningsSection = document.getElementById('warningsSection');
+            if (data.warnings.length > 0) {
+                warningsSection.classList.remove('hidden');
+                document.getElementById('warningsList').innerHTML = data.warnings.map(w => 
+                    `<div class="flex items-start gap-3 p-3 bg-amber-100/50 rounded-xl border border-amber-200/50">
+                        <i class="fas fa-exclamation-circle text-amber-500 mt-0.5"></i>
+                        <p class="text-amber-800 text-sm leading-relaxed">${w}</p>
+                    </div>`
+                ).join('');
+            } else {
+                warningsSection.classList.add('hidden');
+            }
+            
+            // Grammar
+            const grammarSection = document.getElementById('grammarSection');
+            if (grammarIssues.length > 0) {
+                grammarSection.classList.remove('hidden');
+                const errorCount = grammarIssues.filter(g => g.type === 'error').length;
+                const warningCount = grammarIssues.filter(g => g.type === 'warning').length;
+                const grammarScoreEl = document.getElementById('grammarScore');
+                
+                if (errorCount === 0 && warningCount === 0) {
+                    grammarScoreEl.textContent = 'Tiada isu';
+                    grammarScoreEl.className = 'px-4 py-2 rounded-full text-sm font-bold bg-green-100 text-green-700';
+                } else if (errorCount === 0) {
+                    grammarScoreEl.textContent = `${warningCount} amaran`;
+                    grammarScoreEl.className = 'px-4 py-2 rounded-full text-sm font-bold bg-yellow-100 text-yellow-700';
+                } else {
+                    grammarScoreEl.textContent = `${errorCount} ralat, ${warningCount} amaran`;
+                    grammarScoreEl.className = 'px-4 py-2 rounded-full text-sm font-bold bg-red-100 text-red-700';
+                }
+                
+                document.getElementById('grammarResults').innerHTML = grammarIssues.slice(0, 10).map((issue, i) => `
+                    <div class="flex items-start gap-3 p-4 ${issue.type === 'error' ? 'bg-red-50 border-red-100' : 'bg-yellow-50 border-yellow-100'} rounded-xl border">
+                        <div class="w-8 h-8 ${issue.type === 'error' ? 'bg-red-100 text-red-500' : 'bg-yellow-100 text-yellow-500'} rounded-lg flex items-center justify-center flex-shrink-0">
+                            <i class="fas ${issue.type === 'error' ? 'fa-times' : 'fa-exclamation'} text-sm"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-sm font-semibold ${issue.type === 'error' ? 'text-red-700' : 'text-yellow-700'}">${issue.message}</p>
+                            <p class="text-xs text-slate-500 mt-1">Dikesan: ${issue.count} kali</p>
+                            ${issue.examples ? `<p class="text-xs text-slate-400 mt-1 italic">"${issue.examples.join('", "')}"</p>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                grammarSection.classList.add('hidden');
+            }
+            
+            // Readability
+            if (data.readability) {
+                document.getElementById('readabilityScore').textContent = data.readability.score;
+                document.getElementById('readabilityLevel').textContent = data.readability.level;
+                document.getElementById('avgSentenceLength').textContent = data.readability.avgSentenceLength;
+                document.getElementById('totalSentences').textContent = data.readability.totalSentences;
+            }
+            
+            // Comparison Chart
+            renderComparisonChart(data.scores);
+            
+            // Sections
+            const sectionsGrid = document.getElementById('sectionsGrid');
+            if (data.sections.length > 0) {
+                sectionsGrid.innerHTML = data.sections.map((s, i) => 
+                    `<span class="keyword-tag bg-green-50 text-green-700 border border-green-100 px-4 py-2 rounded-xl text-sm font-medium" style="animation-delay: ${i * 0.08}s">
+                        <i class="fas fa-check-circle mr-1.5 text-xs"></i>${s}
+                    </span>`
+                ).join('');
+            } else {
+                sectionsGrid.innerHTML = '<p class="text-slate-400 text-sm py-2">Tiada seksyen standard dikesan. Pastikan resume mempunyai tajuk seperti "Pengalaman", "Pendidikan", "Kemahiran".</p>';
+            }
+            
+            // Keywords
+            const keywordsGrid = document.getElementById('keywordsGrid');
+            if (data.keywords.length > 0) {
+                keywordsGrid.innerHTML = data.keywords.map((k, i) => 
+                    `<span class="keyword-tag bg-purple-50 text-purple-700 border border-purple-100 px-3 py-1.5 rounded-lg text-sm font-medium" style="animation-delay: ${i * 0.05}s">${k.word}</span>`
+                ).join('');
+            } else {
+                keywordsGrid.innerHTML = '<p class="text-slate-400 text-sm py-2">Tiada kata kunci popular dikesan. Tambah kemahiran teknikal dan industri yang relevan.</p>';
+            }
+            
+            // Missing keywords
+            const missingSection = document.getElementById('missingKeywords');
+            const missingGrid = document.getElementById('missingKeywordsGrid');
+            if (data.missingKeywords.length > 0) {
+                missingSection.classList.remove('hidden');
+                missingGrid.innerHTML = data.missingKeywords.map((k, i) => 
+                    `<span class="keyword-tag bg-slate-50 text-slate-400 border border-slate-100 px-3 py-1.5 rounded-lg text-sm" style="animation-delay: ${i * 0.05}s">${k}</span>`
+                ).join('');
+            } else {
+                missingSection.classList.add('hidden');
+            }
+            
+            // Action verbs
+            const verbsGrid = document.getElementById('verbsGrid');
+            const verbsByCategory = document.getElementById('verbsByCategory');
+            const verbsCategoryGrid = document.getElementById('verbsCategoryGrid');
+            
+            if (data.verbAnalysis.found.length > 0) {
+                verbsGrid.innerHTML = data.verbAnalysis.found.map((v, i) => 
+                    `<span class="keyword-tag bg-orange-50 text-orange-700 border border-orange-100 px-3 py-1.5 rounded-lg text-sm font-medium" style="animation-delay: ${i * 0.08}s">${v}</span>`
+                ).join('');
+                
+                // Show by category
+                verbsByCategory.classList.remove('hidden');
+                const categoryNames = {
+                    leadership: 'Kepimpinan', creation: 'Penciptaan', improvement: 'Penambahbaikan',
+                    achievement: 'Pencapaian', analysis: 'Analisis', communication: 'Komunikasi',
+                    operations: 'Operasi', financial: 'Kewangan', problemSolving: 'Penyelesaian Masalah',
+                    bm_leadership: 'Kepimpinan (BM)', bm_creation: 'Penciptaan (BM)',
+                    bm_improvement: 'Penambahbaikan (BM)', bm_achievement: 'Pencapaian (BM)'
+                };
+                
+                verbsCategoryGrid.innerHTML = Object.entries(data.verbAnalysis.byCategory).map(([cat, verbs]) => `
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-semibold text-slate-500 w-28">${categoryNames[cat] || cat}:</span>
+                        <div class="flex flex-wrap gap-1">
+                            ${verbs.map(v => `<span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-xs">${v}</span>`).join('')}
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                verbsGrid.innerHTML = '<p class="text-slate-400 text-sm py-2">Tiada kata kerja aktif kuat dikesan. Gunakan perkataan seperti "Managed", "Led", "Achieved", "Developed".</p>';
+                verbsByCategory.classList.add('hidden');
+            }
+            
+            // Suggestions
+            const suggestionsList = document.getElementById('suggestionsList');
+            if (data.suggestions.length > 0) {
+                suggestionsList.innerHTML = data.suggestions.map((s, i) => 
+                    `<div class="suggestion-card flex items-start gap-4 p-5 bg-blue-50/50 rounded-2xl border border-blue-100 hover:bg-blue-50 transition-colors">
+                        <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0 text-blue-600 font-bold text-sm">${i + 1}</div>
+                        <p class="text-slate-700 text-sm leading-relaxed pt-1">${s}</p>
+                    </div>`
+                ).join('');
+            } else {
+                suggestionsList.innerHTML = '<div class="p-6 bg-green-50 rounded-2xl border border-green-100 text-center"><i class="fas fa-check-circle text-green-500 text-2xl mb-2"></i><p class="text-green-700 font-medium">Hebat! Tiada saranan kritikal. Resume anda sudah optimized dengan baik.</p></div>';
+            }
+        }
+
+        function renderComparisonChart(userScores) {
+            const ctx = document.getElementById('comparisonChart').getContext('2d');
+            
+            if (comparisonChart) comparisonChart.destroy();
+            
+            const industryAvg = { contact: 14, structure: 17, keywords: 14, metrics: 11, format: 6 };
+            
+            comparisonChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Peribadi', 'Struktur', 'Kata Kunci', 'Metrik', 'Format'],
+                    datasets: [
+                        {
+                            label: 'Anda',
+                            data: [userScores.contact, userScores.structure, userScores.keywords, userScores.metrics, userScores.format],
+                            backgroundColor: 'rgba(37, 99, 235, 0.85)',
+                            borderRadius: 6,
+                            borderSkipped: false
+                        },
+                        {
+                            label: 'Purata',
+                            data: [industryAvg.contact, industryAvg.structure, industryAvg.keywords, industryAvg.metrics, industryAvg.format],
+                            backgroundColor: 'rgba(148, 163, 184, 0.5)',
+                            borderRadius: 6,
+                            borderSkipped: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { boxWidth: 12, font: { size: 10, family: 'Inter' }, padding: 15 }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            padding: 12,
+                            cornerRadius: 8,
+                            titleFont: { size: 12, family: 'Inter' },
+                            bodyFont: { size: 11, family: 'Inter' }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 25,
+                            ticks: { font: { size: 9, family: 'Inter' }, color: '#94a3b8' },
+                            grid: { color: '#f1f5f9' }
+                        },
+                        x: {
+                            ticks: { font: { size: 9, family: 'Inter' }, color: '#64748b' },
+                            grid: { display: false }
+                        }
+                    },
+                    animation: { duration: 1000, easing: 'easeOutQuart' }
+                }
+            });
+        }
+
+        function updateBar(labelId, barId, score, max) {
+            document.getElementById(labelId).textContent = `${score}/${max}`;
+            setTimeout(() => {
+                document.getElementById(barId).style.width = `${(score / max) * 100}%`;
+            }, 300);
+        }
+
+        function animateValue(id, start, end, duration) {
+            const obj = document.getElementById(id);
+            const range = end - start;
+            if (range === 0) { obj.textContent = end; return; }
+            const increment = end > start ? 1 : -1;
+            const stepTime = Math.abs(Math.floor(duration / range));
+            let current = start;
+            
+            const timer = setInterval(() => {
+                current += increment;
+                obj.textContent = current;
+                if (current === end) clearInterval(timer);
+            }, Math.max(stepTime, 8));
+        }
+
+        function showError(message) {
+            document.getElementById('heroSection').classList.add('hidden');
+            document.getElementById('loadingSection').classList.add('hidden');
+            document.getElementById('resultsSection').classList.add('hidden');
+            document.getElementById('uploadSection').classList.add('hidden');
+            document.getElementById('errorSection').classList.remove('hidden');
+            document.getElementById('errorMessage').textContent = message;
+        }
+
+        function resetAnalyzer() {
+            document.getElementById('errorSection').classList.add('hidden');
+            document.getElementById('resultsSection').classList.add('hidden');
+            document.getElementById('heroSection').classList.remove('hidden');
+            document.getElementById('uploadSection').classList.remove('hidden');
+            document.getElementById('fileInput').value = '';
+            document.getElementById('textInput').value = '';
+            document.getElementById('charCount').textContent = '0 aksara';
+            document.getElementById('wordCountInput').textContent = '0 perkataan';
+            switchTab('file');
+            analysisData = null;
+            currentFile = null;
+            grammarIssues = [];
+            if (comparisonChart) {
+                comparisonChart.destroy();
+                comparisonChart = null;
+            }
+        }
+
+        // History Functions
+        function saveToHistory() {
+            if (!analysisData) return;
+            
+            let history = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+            history.unshift({
+                ...analysisData,
+                id: Date.now(),
+                savedAt: new Date().toLocaleString('ms-MY', { dateStyle: 'medium', timeStyle: 'short' })
+            });
+            
+            if (history.length > 20) history = history.slice(0, 20);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+            updateHistoryCount();
+            showToast('Berjaya disimpan ke sejarah!');
+        }
+
+        function updateHistoryCount() {
+            const history = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+            document.getElementById('historyCount').textContent = history.length;
+        }
+
+        function showHistory() {
+            const history = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+            const list = document.getElementById('historyList');
+            
+            if (history.length === 0) {
+                list.innerHTML = '<div class="text-center py-12"><i class="fas fa-inbox text-slate-300 text-4xl mb-3"></i><p class="text-slate-400">Tiada sejarah tersimpan.</p><p class="text-xs text-slate-300 mt-1">Analisis resume akan disimpan di sini.</p></div>';
+            } else {
+                list.innerHTML = history.map((item, idx) => `
+                    <div class="history-item bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center gap-3">
+                                <div class="w-12 h-12 ${item.score >= 80 ? 'bg-green-100 text-green-600' : item.score >= 60 ? 'bg-yellow-100 text-yellow-600' : 'bg-red-100 text-red-600'} rounded-xl flex items-center justify-center font-bold text-lg">
+                                    ${item.score}
+                                </div>
+                                <div>
+                                    <p class="font-semibold text-slate-800 text-sm">${item.fileName}</p>
+                                    <p class="text-xs text-slate-400">${item.savedAt}</p>
+                                </div>
+                            </div>
+                            <div class="flex gap-1">
+                                <button onclick="loadHistoryItem(${item.id})" class="w-9 h-9 bg-white hover:bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center transition-colors shadow-sm" title="Lihat"><i class="fas fa-eye text-sm"></i></button>
+                                <button onclick="deleteHistoryItem(${item.id})" class="w-9 h-9 bg-white hover:bg-red-50 text-red-400 hover:text-red-600 rounded-lg flex items-center justify-center transition-colors shadow-sm" title="Padam"><i class="fas fa-trash-alt text-sm"></i></button>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="bg-blue-50 text-blue-600 px-2.5 py-1 rounded-lg text-xs font-medium">${item.scores.contact}/20 Peribadi</span>
+                            <span class="bg-green-50 text-green-600 px-2.5 py-1 rounded-lg text-xs font-medium">${item.scores.structure}/25 Struktur</span>
+                            <span class="bg-purple-50 text-purple-600 px-2.5 py-1 rounded-lg text-xs font-medium">${item.scores.keywords}/25 Kata Kunci</span>
+                            <span class="bg-orange-50 text-orange-600 px-2.5 py-1 rounded-lg text-xs font-medium">${item.scores.metrics}/20 Metrik</span>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            
+            document.getElementById('historyModal').classList.add('active');
+        }
+
+        function closeHistory() {
+            document.getElementById('historyModal').classList.remove('active');
+        }
+
+        function loadHistoryItem(id) {
+            const history = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+            const item = history.find(h => h.id === id);
+            if (item) {
+                analysisData = item;
+                grammarIssues = item.grammarIssues || [];
+                closeHistory();
+                document.getElementById('heroSection').classList.add('hidden');
+                document.getElementById('uploadSection').classList.add('hidden');
+                showResults();
+                showToast('Sejarah dimuatkan!');
+            }
+        }
+
+        function deleteHistoryItem(id) {
+            let history = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+            history = history.filter(h => h.id !== id);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+            updateHistoryCount();
+            showHistory();
+            showToast('Dipadam dari sejarah');
+        }
+
+        function clearHistory() {
+            if (confirm('Padam semua sejarah? Tindakan ini tidak boleh dibatalkan.')) {
+                localStorage.removeItem(STORAGE_KEY);
+                updateHistoryCount();
+                showHistory();
+                showToast('Semua sejarah dipadam');
+            }
+        }
+
+        function exportHistory() {
+            const history = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+            const dataStr = JSON.stringify(history, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `resume_analyzer_history_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('Sejarah dieksport!');
+        }
+
+        function importHistory(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (Array.isArray(imported)) {
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(imported));
+                        updateHistoryCount();
+                        showHistory();
+                        showToast('Sejarah berjaya diimport!');
+                    } else {
+                        showToast('Format fail tidak sah!', 'error');
+                    }
+                } catch (err) {
+                    showToast('Gagal membaca fail!', 'error');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        // Compare Functions
+        function showCompareModal() {
+            const history = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+            const content = document.getElementById('compareContent');
+            
+            if (history.length < 2) {
+                content.innerHTML = '<div class="text-center py-10"><i class="fas fa-balance-scale text-slate-300 text-4xl mb-3"></i><p class="text-slate-500">Simpan sekurang-kurangnya 2 analisis dalam sejarah untuk menggunakan ciri perbandingan.</p></div>';
+            } else {
+                content.innerHTML = `
+                    <div class="space-y-5">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-sm font-semibold text-slate-700 mb-2 block">Resume 1</label>
+                                <select id="compare1" class="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-400 transition-colors">
+                                    ${history.map((h, i) => `<option value="${i}">${h.fileName} (Skor: ${h.score})</option>`).join('')}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-sm font-semibold text-slate-700 mb-2 block">Resume 2</label>
+                                <select id="compare2" class="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-400 transition-colors">
+                                    ${history.map((h, i) => `<option value="${i}" ${i === 1 ? 'selected' : ''}>${h.fileName} (Skor: ${h.score})</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+                        <button onclick="performCompare()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-semibold transition-all shadow-lg shadow-blue-600/25 flex items-center justify-center gap-2">
+                            <i class="fas fa-balance-scale"></i> Bandingkan
+                        </button>
+                        <div id="compareResult"></div>
+                    </div>
+                `;
+            }
+            
+            document.getElementById('compareModal').classList.add('active');
+        }
+
+        function closeCompareModal() {
+            document.getElementById('compareModal').classList.remove('active');
+        }
+
+        function performCompare() {
+            const history = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+            const idx1 = parseInt(document.getElementById('compare1').value);
+            const idx2 = parseInt(document.getElementById('compare2').value);
+            
+            if (idx1 === idx2) {
+                showToast('Sila pilih 2 resume yang berbeza!', 'error');
+                return;
+            }
+            
+            const r1 = history[idx1];
+            const r2 = history[idx2];
+            
+            const resultDiv = document.getElementById('compareResult');
+            resultDiv.innerHTML = `
+                <div class="mt-6 bg-slate-50 rounded-2xl p-6 border border-slate-200">
+                    <h4 class="font-bold text-slate-800 mb-5 text-center text-lg">Keputusan Perbandingan</h4>
+                    
+                    <div class="grid grid-cols-3 gap-4 mb-6 text-center">
+                        <div class="bg-white rounded-xl p-4 shadow-sm">
+                            <p class="text-xs text-slate-400 mb-2 uppercase tracking-wide">Resume 1</p>
+                            <p class="font-semibold text-slate-700 text-sm mb-3 truncate">${r1.fileName}</p>
+                            <div class="text-4xl font-extrabold ${r1.score > r2.score ? 'text-green-500' : r1.score < r2.score ? 'text-red-500' : 'text-blue-500'}">${r1.score}</div>
+                        </div>
+                        <div class="flex items-center justify-center">
+                            <div class="text-2xl font-bold text-slate-300 bg-white w-14 h-14 rounded-full flex items-center justify-center shadow-sm">VS</div>
+                        </div>
+                        <div class="bg-white rounded-xl p-4 shadow-sm">
+                            <p class="text-xs text-slate-400 mb-2 uppercase tracking-wide">Resume 2</p>
+                            <p class="font-semibold text-slate-700 text-sm mb-3 truncate">${r2.fileName}</p>
+                            <div class="text-4xl font-extrabold ${r2.score > r1.score ? 'text-green-500' : r2.score < r1.score ? 'text-red-500' : 'text-blue-500'}">${r2.score}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-3 bg-white rounded-xl p-4">
+                        ${compareItem('Skor Keseluruhan', r1.score, r2.score, 100)}
+                        ${compareItem('Maklumat Peribadi', r1.scores.contact, r2.scores.contact, 20)}
+                        ${compareItem('Struktur & Seksyen', r1.scores.structure, r2.scores.structure, 25)}
+                        ${compareItem('Kata Kunci', r1.scores.keywords, r2.scores.keywords, 25)}
+                        ${compareItem('Pencapaian Kuantitatif', r1.scores.metrics, r2.scores.metrics, 20)}
+                        ${compareItem('Format & Panjang', r1.scores.format, r2.scores.format, 10)}
+                    </div>
+                    
+                    <div class="mt-5 p-4 bg-blue-50 rounded-xl border border-blue-100">
+                        <p class="text-sm text-blue-800 font-semibold text-center">
+                            <i class="fas fa-trophy mr-2"></i>
+                            ${r1.score > r2.score ? `Resume 1 lebih baik dengan ${r1.score - r2.score} mata` : 
+                              r2.score > r1.score ? `Resume 2 lebih baik dengan ${r2.score - r1.score} mata` : 
+                              'Kedua-dua resume mempunyai skor yang sama!'}
+                        </p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function compareItem(label, val1, val2, max) {
+            const pct1 = (val1 / max * 100).toFixed(0);
+            const pct2 = (val2 / max * 100).toFixed(0);
+            const winner = val1 > val2 ? 1 : val2 > val1 ? 2 : 0;
+            
+            return `
+                <div class="flex items-center gap-4 py-2">
+                    <div class="w-32 text-xs text-slate-500 font-medium">${label}</div>
+                    <div class="flex-1 flex items-center gap-2">
+                        <div class="flex-1 bg-slate-200 rounded-full h-2.5 overflow-hidden">
+                            <div class="h-full ${winner === 1 ? 'bg-green-500' : 'bg-slate-400'} rounded-full" style="width: ${pct1}%"></div>
+                        </div>
+                        <span class="text-xs w-8 text-right font-bold ${winner === 1 ? 'text-green-600' : 'text-slate-400'}">${val1}</span>
+                    </div>
+                    <div class="flex-1 flex items-center gap-2">
+                        <div class="flex-1 bg-slate-200 rounded-full h-2.5 overflow-hidden">
+                            <div class="h-full ${winner === 2 ? 'bg-green-500' : 'bg-slate-400'} rounded-full" style="width: ${pct2}%"></div>
+                        </div>
+                        <span class="text-xs w-8 text-right font-bold ${winner === 2 ? 'text-green-600' : 'text-slate-400'}">${val2}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Export PDF Report
+        async function exportReport() {
+            if (!analysisData) return;
+            
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Header
+            doc.setFillColor(37, 99, 235);
+            doc.rect(0, 0, 210, 50, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(24);
+            doc.text('Laporan Analisis Resume', 105, 22, { align: 'center' });
+            doc.setFontSize(11);
+            doc.text(`Dijana: ${new Date().toLocaleDateString('ms-MY')}`, 105, 35, { align: 'center' });
+            doc.text(`Fail: ${analysisData.fileName}`, 105, 42, { align: 'center' });
+            
+            // Score
+            doc.setTextColor(37, 99, 235);
+            doc.setFontSize(60);
+            doc.text(`${analysisData.score}`, 55, 80, { align: 'center' });
+            doc.setFontSize(14);
+            doc.setTextColor(100, 100, 100);
+            doc.text('/ 100', 55, 88, { align: 'center' });
+            
+            // Status
+            doc.setFontSize(12);
+            doc.setTextColor(0, 0, 0);
+            let statusText = analysisData.score >= 80 ? 'EXCELLENT' : analysisData.score >= 60 ? 'BAIK' : 'PERLU PENAMBAHBAIKAN';
+            let statusColor = analysisData.score >= 80 ? [34, 197, 94] : analysisData.score >= 60 ? [234, 179, 8] : [239, 68, 68];
+            doc.setTextColor(...statusColor);
+            doc.text(`Status: ${statusText}`, 105, 75, { align: 'center' });
+            
+            // Grade badge
+            doc.setFillColor(...statusColor);
+            doc.circle(160, 82, 15, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(20);
+            doc.text(analysisData.score >= 90 ? 'A+' : analysisData.score >= 80 ? 'A' : analysisData.score >= 70 ? 'B' : analysisData.score >= 60 ? 'C' : 'D', 160, 87, { align: 'center' });
+            
+            // Breakdown
+            let y = 105;
+            doc.setFontSize(13);
+            doc.setTextColor(0, 0, 0);
+            doc.text('Pecahan Skor:', 20, y);
+            y += 10;
+            
+            const scores = [
+                ['Maklumat Peribadi', analysisData.scores.contact, 20],
+                ['Struktur & Seksyen', analysisData.scores.structure, 25],
+                ['Kata Kunci & Kemahiran', analysisData.scores.keywords, 25],
+                ['Pencapaian Kuantitatif', analysisData.scores.metrics, 20],
+                ['Format & Panjang', analysisData.scores.format, 10]
+            ];
+            
+            scores.forEach(([name, score, max]) => {
+                const pct = (score / max * 100).toFixed(0);
+                doc.setFillColor(241, 245, 249);
+                doc.roundedRect(20, y - 5, 170, 10, 2, 2, 'F');
+                doc.setFontSize(10);
+                doc.setTextColor(80, 80, 80);
+                doc.text(name, 25, y);
+                doc.text(`${score}/${max} (${pct}%)`, 175, y, { align: 'right' });
+                y += 12;
+            });
+            
+            // Readability
+            if (analysisData.readability) {
+                y += 5;
+                doc.setFontSize(13);
+                doc.setTextColor(0, 0, 0);
+                doc.text('Kebolehbacaan:', 20, y);
+                y += 10;
+                doc.setFontSize(10);
+                doc.setTextColor(80, 80, 80);
+                doc.text(`Skor Flesch: ${analysisData.readability.score} (${analysisData.readability.level})`, 20, y);
+                y += 7;
+                doc.text(`Purata Ayat: ${analysisData.readability.avgSentenceLength} perkataan/ayat`, 20, y);
+                y += 7;
+                doc.text(`Jumlah Ayat: ${analysisData.readability.totalSentences}`, 20, y);
+            }
+            
+            // Contact Info
+            y += 12;
+            doc.setFontSize(13);
+            doc.setTextColor(0, 0, 0);
+            doc.text('Maklumat Dikesan:', 20, y);
+            y += 10;
+            doc.setFontSize(10);
+            doc.setTextColor(80, 80, 80);
+            doc.text(`E-mel: ${analysisData.email || 'Tiada dikesan'}`, 20, y);
+            y += 7;
+            doc.text(`Telefon: ${analysisData.phone || 'Tiada dikesan'}`, 20, y);
+            y += 7;
+            doc.text(`LinkedIn: ${analysisData.linkedIn || 'Tiada dikesan'}`, 20, y);
+            y += 7;
+            doc.text(`Jumlah Perkataan: ${analysisData.wordCount}`, 20, y);
+            
+            // Sections
+            y += 12;
+            doc.setFontSize(13);
+            doc.setTextColor(0, 0, 0);
+            doc.text('Seksyen Dikesan:', 20, y);
+            y += 8;
+            doc.setFontSize(9);
+            doc.setTextColor(80, 80, 80);
+            if (analysisData.sections.length > 0) {
+                const lines = doc.splitTextToSize(analysisData.sections.join(', '), 170);
+                doc.text(lines, 20, y);
+                y += lines.length * 5 + 5;
+            } else {
+                doc.text('Tiada seksyen standard dikesan', 20, y);
+                y += 10;
+            }
+            
+            // Keywords
+            doc.setFontSize(13);
+            doc.setTextColor(0, 0, 0);
+            doc.text('Kata Kunci Dikesan:', 20, y);
+            y += 8;
+            doc.setFontSize(9);
+            doc.setTextColor(80, 80, 80);
+            if (analysisData.keywords.length > 0) {
+                const kwText = analysisData.keywords.map(k => k.word).join(', ');
+                const lines = doc.splitTextToSize(kwText, 170);
+                doc.text(lines, 20, y);
+                y += lines.length * 5 + 5;
+            } else {
+                doc.text('Tiada kata kunci popular dikesan', 20, y);
+                y += 10;
+            }
+            
+            // Action Verbs
+            if (analysisData.verbAnalysis && analysisData.verbAnalysis.found.length > 0) {
+                doc.setFontSize(13);
+                doc.setTextColor(0, 0, 0);
+                doc.text('Kata Kerja Aktif:', 20, y);
+                y += 8;
+                doc.setFontSize(9);
+                doc.setTextColor(80, 80, 80);
+                const verbText = analysisData.verbAnalysis.found.join(', ');
+                const lines = doc.splitTextToSize(verbText, 170);
+                doc.text(lines, 20, y);
+                y += lines.length * 5 + 5;
+            }
+            
+            // Grammar Check
+            if (grammarIssues.length > 0) {
+                doc.addPage();
+                doc.setFillColor(37, 99, 235);
+                doc.rect(0, 0, 210, 35, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(18);
+                doc.text('Penyemakan Tatabahasa', 105, 22, { align: 'center' });
+                
+                y = 45;
+                doc.setFontSize(11);
+                doc.setTextColor(80, 80, 80);
+                
+                const errorCount = grammarIssues.filter(g => g.type === 'error').length;
+                const warningCount = grammarIssues.filter(g => g.type === 'warning').length;
+                
+                doc.setTextColor(errorCount > 0 ? 220 : 80, 80, 80);
+                doc.text(`Ralat: ${errorCount} | Amaran: ${warningCount}`, 20, y);
+                y += 10;
+                
+                grammarIssues.slice(0, 15).forEach((issue, i) => {
+                    if (y > 270) { doc.addPage(); y = 20; }
+                    doc.setTextColor(issue.type === 'error' ? 220 : 180, issue.type === 'error' ? 50 : 120, 50);
+                    doc.text(`${i + 1}. [${issue.type === 'error' ? 'RALAT' : 'AMARAN'}] ${issue.message}`, 20, y);
+                    y += 7;
+                    doc.setTextColor(120, 120, 120);
+                    doc.text(`    Dikesan: ${issue.count} kali`, 20, y);
+                    y += 10;
+                });
+            }
+            
+            // Suggestions
+            if (analysisData.suggestions.length > 0) {
+                doc.addPage();
+                doc.setFillColor(37, 99, 235);
+                doc.rect(0, 0, 210, 35, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(18);
+                doc.text('Saranan Penambahbaikan', 105, 22, { align: 'center' });
+                
+                y = 45;
+                doc.setFontSize(11);
+                doc.setTextColor(80, 80, 80);
+                
+                analysisData.suggestions.forEach((s, i) => {
+                    if (y > 260) { doc.addPage(); y = 20; }
+                    doc.setTextColor(37, 99, 235);
+                    doc.text(`${i + 1}.`, 20, y);
+                    const lines = doc.splitTextToSize(s, 165);
+                    doc.setTextColor(60, 60, 60);
+                    doc.text(lines, 30, y);
+                    y += lines.length * 6 + 5;
+                });
+            }
+            
+            // Footer
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setTextColor(150, 150, 150);
+                doc.text(`Resume Analyzer Pro v5.1 • Dijana pada ${new Date().toLocaleDateString('ms-MY')}`, 105, 287, { align: 'center' });
+                doc.text(`Muka surat ${i} daripada ${pageCount}`, 105, 292, { align: 'center' });
+            }
+            
+            doc.save(`Laporan_Resume_${analysisData.fileName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '')}_${new Date().toISOString().split('T')[0]}.pdf`);
+            showToast('Laporan PDF dimuat turun!');
+        }
+    </script>
+</body>
+</html>
+
+
