@@ -953,7 +953,7 @@ SIJIL
                     return regex.test(lowerText);
                 });
                 
-                if
+                // BARIS INI TELAH DIBUANG - ia adalah ralat sintaks
                 if (categoryFound.length > 0) {
                     byCategory[category] = categoryFound;
                     found.push(...categoryFound);
@@ -2227,219 +2227,218 @@ ${name}`;
             
             const reader = new FileReader();
             reader.onload = e => {
-                try
-                const history = JSON.parse(e.target.result);
-                if (Array.isArray(history)) {
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(history.slice(0, 20)));
-                    updateHistoryCount();
-                    showHistory();
-                    showToast('Sejarah berjaya diimport!');
-                } else {
-                    throw new Error('Format tidak sah');
+                try {
+                    const history = JSON.parse(e.target.result);
+                    if (Array.isArray(history)) {
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(history.slice(0, 20)));
+                        updateHistoryCount();
+                        showHistory();
+                        showToast('Sejarah berjaya diimport!');
+                    } else {
+                        throw new Error('Format tidak sah');
+                    }
+                } catch (err) {
+                    showToast('Gagal import: Format fail tidak sah', 'error');
                 }
-            } catch (err) {
-                showToast('Gagal import: Format fail tidak sah', 'error');
-            }
-        };
-        reader.readAsText(file);
-    }
-
-    function clearHistory() {
-        if (confirm('Padam semua sejarah analisis?')) {
-            localStorage.removeItem(STORAGE_KEY);
-            updateHistoryCount();
-            showHistory();
-            showToast('Sejarah dibersihkan');
+            };
+            reader.readAsText(file);
         }
-    }
 
-    // ========== COMPARE MODAL FUNCTIONS ==========
+        function clearHistory() {
+            if (confirm('Padam semua sejarah analisis?')) {
+                localStorage.removeItem(STORAGE_KEY);
+                updateHistoryCount();
+                showHistory();
+                showToast('Sejarah dibersihkan');
+            }
+        }
 
-    function showCompareModal() {
-        const history = getHistory();
-        const compareContent = document.getElementById('compareContent');
-        
-        if (history.length < 2) {
-            compareContent.innerHTML = `
-                <div class="text-center py-8">
-                    <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <i class="fas fa-chart-bar text-slate-400 text-2xl"></i>
+        // ========== COMPARE MODAL FUNCTIONS ==========
+
+        function showCompareModal() {
+            const history = getHistory();
+            const compareContent = document.getElementById('compareContent');
+            
+            if (history.length < 2) {
+                compareContent.innerHTML = `
+                    <div class="text-center py-8">
+                        <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-chart-bar text-slate-400 text-2xl"></i>
+                        </div>
+                        <p class="text-slate-500">Sekurang-kurangnya 2 analisis diperlukan untuk perbandingan.</p>
+                        <p class="text-sm text-slate-400 mt-2">Analisis beberapa resume dan simpan ke sejarah.</p>
                     </div>
-                    <p class="text-slate-500">Sekurang-kurangnya 2 analisis diperlukan untuk perbandingan.</p>
-                    <p class="text-sm text-slate-400 mt-2">Analisis beberapa resume dan simpan ke sejarah.</p>
-                </div>
-            `;
-        } else {
-            compareContent.innerHTML = `
-                <div class="space-y-4">
-                    <div class="bg-slate-50 rounded-xl p-4 border border-slate-200">
-                        <h4 class="text-sm font-bold text-slate-700 mb-3">Perbandingan Skor</h4>
-                        <div class="space-y-3">
-                            ${history.slice(0, 5).map((item, idx) => `
-                                <div class="flex items-center gap-3">
-                                    <span class="text-xs font-medium text-slate-500 w-8">#${idx + 1}</span>
-                                    <div class="flex-1">
-                                        <div class="flex justify-between text-sm mb-1">
-                                            <span class="text-slate-700">${item.fileName}</span>
-                                            <span class="font-bold ${item.score >= 70 ? 'text-green-600' : item.score >= 50 ? 'text-yellow-600' : 'text-red-600'}">${item.score}</span>
-                                        </div>
-                                        <div class="bg-slate-200 rounded-full h-2 overflow-hidden">
-                                            <div class="h-full rounded-full ${item.score >= 70 ? 'bg-green-500' : item.score >= 50 ? 'bg-yellow-500' : 'bg-red-500'}" style="width: ${item.score}%"></div>
+                `;
+            } else {
+                compareContent.innerHTML = `
+                    <div class="space-y-4">
+                        <div class="bg-slate-50 rounded-xl p-4 border border-slate-200">
+                            <h4 class="text-sm font-bold text-slate-700 mb-3">Perbandingan Skor</h4>
+                            <div class="space-y-3">
+                                ${history.slice(0, 5).map((item, idx) => `
+                                    <div class="flex items-center gap-3">
+                                        <span class="text-xs font-medium text-slate-500 w-8">#${idx + 1}</span>
+                                        <div class="flex-1">
+                                            <div class="flex justify-between text-sm mb-1">
+                                                <span class="text-slate-700">${item.fileName}</span>
+                                                <span class="font-bold ${item.score >= 70 ? 'text-green-600' : item.score >= 50 ? 'text-yellow-600' : 'text-red-600'}">${item.score}</span>
+                                            </div>
+                                            <div class="bg-slate-200 rounded-full h-2 overflow-hidden">
+                                                <div class="h-full rounded-full ${item.score >= 70 ? 'bg-green-500' : item.score >= 50 ? 'bg-yellow-500' : 'bg-red-500'}" style="width: ${item.score}%"></div>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            `).join('')}
+                                `).join('')}
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-3 gap-3">
+                            <div class="bg-blue-50 rounded-xl p-4 text-center border border-blue-100">
+                                <p class="text-2xl font-bold text-blue-600">${history.length}</p>
+                                <p class="text-xs text-blue-500">Jumlah Analisis</p>
+                            </div>
+                            <div class="bg-green-50 rounded-xl p-4 text-center border border-green-100">
+                                <p class="text-2xl font-bold text-green-600">${Math.max(...history.map(h => h.score))}</p>
+                                <p class="text-xs text-green-500">Skor Tertinggi</p>
+                            </div>
+                            <div class="bg-purple-50 rounded-xl p-4 text-center border border-purple-100">
+                                <p class="text-2xl font-bold text-purple-600">${Math.round(history.reduce((a, b) => a + b.score, 0) / history.length)}</p>
+                                <p class="text-xs text-purple-500">Purata Skor</p>
+                            </div>
                         </div>
                     </div>
-                    
-                    <div class="grid grid-cols-3 gap-3">
-                        <div class="bg-blue-50 rounded-xl p-4 text-center border border-blue-100">
-                            <p class="text-2xl font-bold text-blue-600">${history.length}</p>
-                            <p class="text-xs text-blue-500">Jumlah Analisis</p>
-                        </div>
-                        <div class="bg-green-50 rounded-xl p-4 text-center border border-green-100">
-                            <p class="text-2xl font-bold text-green-600">${Math.max(...history.map(h => h.score))}</p>
-                            <p class="text-xs text-green-500">Skor Tertinggi</p>
-                        </div>
-                        <div class="bg-purple-50 rounded-xl p-4 text-center border border-purple-100">
-                            <p class="text-2xl font-bold text-purple-600">${Math.round(history.reduce((a, b) => a + b.score, 0) / history.length)}</p>
-                            <p class="text-xs text-purple-500">Purata Skor</p>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-        
-        document.getElementById('compareModal').classList.add('active');
-    }
-
-    function closeCompareModal() {
-        document.getElementById('compareModal').classList.remove('active');
-    }
-
-    // ========== EXPORT FUNCTIONS ==========
-
-    function exportReport() {
-        if (!analysisData) {
-            showToast('Tiada data untuk dieksport', 'error');
-            return;
+                `;
+            }
+            
+            document.getElementById('compareModal').classList.add('active');
         }
 
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        
-        // Header
-        doc.setFillColor(37, 99, 235);
-        doc.rect(0, 0, 210, 40, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(24);
-        doc.text('Resume Analyzer Pro', 105, 20, { align: 'center' });
-        doc.setFontSize(12);
-        doc.text(`Laporan Analisis ATS - ${analysisData.fileName}`, 105, 32, { align: 'center' });
-        
-        // Score
-        doc.setTextColor(30, 41, 59);
-        doc.setFontSize(48);
-        doc.text(`${analysisData.score}`, 20, 65);
-        doc.setFontSize(14);
-        doc.text('/ 100', 55, 65);
-        
-        // Verdict
-        const verdict = analysisData.score >= 80 ? 'Sangat Baik' : analysisData.score >= 60 ? 'Baik' : analysisData.score >= 40 ? 'Sederhana' : 'Perlu Penambahbaikan';
-        doc.setFontSize(16);
-        doc.setTextColor(analysisData.score >= 60 ? 34, 197, 94 : 239, 68, 68);
-        doc.text(verdict, 20, 80);
-        
-        // Sections
-        doc.setTextColor(30, 41, 59);
-        doc.setFontSize(12);
-        let y = 100;
-        
-        doc.setFontSize(14);
-        doc.setFont(undefined, 'bold');
-        doc.text('Ringkasan Skor', 20, y);
-        doc.setFont(undefined, 'normal');
-        y += 10;
-        
-        const scoreItems = [
-            ['Maklumat Peribadi', `${analysisData.scores.contact}/20`],
-            ['Struktur & Seksyen', `${analysisData.scores.structure}/25`],
-            ['Kata Kunci & Kemahiran', `${analysisData.scores.keywords}/25`],
-            ['Pencapaian Kuantitatif', `${analysisData.scores.metrics}/20`],
-            ['Format & Panjang', `${analysisData.scores.format}/10`]
-        ];
-        
-        scoreItems.forEach(([label, score]) => {
-            doc.text(`${label}: ${score}`, 25, y);
-            y += 8;
-        });
-        
-        // Keywords
-        y += 10;
-        doc.setFontSize(14);
-        doc.setFont(undefined, 'bold');
-        doc.text('Kata Kunci Dikesan', 20, y);
-        doc.setFont(undefined, 'normal');
-        y += 10;
-        
-        const keywordsText = analysisData.keywords.map(k => k.word).join(', ');
-        const splitKeywords = doc.splitTextToSize(keywordsText, 170);
-        doc.setFontSize(10);
-        doc.text(splitKeywords, 25, y);
-        y += splitKeywords.length * 5 + 10;
-        
-        // Suggestions
-        if (y > 250) {
-            doc.addPage();
-            y = 20;
+        function closeCompareModal() {
+            document.getElementById('compareModal').classList.remove('active');
         }
-        
-        doc.setFontSize(14);
-        doc.setFont(undefined, 'bold');
-        doc.text('Saranan Penambahbaikan', 20, y);
-        doc.setFont(undefined, 'normal');
-        y += 10;
-        
-        doc.setFontSize(10);
-        analysisData.suggestions.forEach((suggestion, idx) => {
-            const splitSuggestion = doc.splitTextToSize(`${idx + 1}. ${suggestion}`, 170);
-            if (y + splitSuggestion.length * 5 > 280) {
+
+        // ========== EXPORT FUNCTIONS ==========
+
+        function exportReport() {
+            if (!analysisData) {
+                showToast('Tiada data untuk dieksport', 'error');
+                return;
+            }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Header
+            doc.setFillColor(37, 99, 235);
+            doc.rect(0, 0, 210, 40, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(24);
+            doc.text('Resume Analyzer Pro', 105, 20, { align: 'center' });
+            doc.setFontSize(12);
+            doc.text(`Laporan Analisis ATS - ${analysisData.fileName}`, 105, 32, { align: 'center' });
+            
+            // Score
+            doc.setTextColor(30, 41, 59);
+            doc.setFontSize(48);
+            doc.text(`${analysisData.score}`, 20, 65);
+            doc.setFontSize(14);
+            doc.text('/ 100', 55, 65);
+            
+            // Verdict
+            const verdict = analysisData.score >= 80 ? 'Sangat Baik' : analysisData.score >= 60 ? 'Baik' : analysisData.score >= 40 ? 'Sederhana' : 'Perlu Penambahbaikan';
+            doc.setFontSize(16);
+            doc.setTextColor(analysisData.score >= 60 ? 34, 197, 94 : 239, 68, 68);
+            doc.text(verdict, 20, 80);
+            
+            // Sections
+            doc.setTextColor(30, 41, 59);
+            doc.setFontSize(12);
+            let y = 100;
+            
+            doc.setFontSize(14);
+            doc.setFont(undefined, 'bold');
+            doc.text('Ringkasan Skor', 20, y);
+            doc.setFont(undefined, 'normal');
+            y += 10;
+            
+            const scoreItems = [
+                ['Maklumat Peribadi', `${analysisData.scores.contact}/20`],
+                ['Struktur & Seksyen', `${analysisData.scores.structure}/25`],
+                ['Kata Kunci & Kemahiran', `${analysisData.scores.keywords}/25`],
+                ['Pencapaian Kuantitatif', `${analysisData.scores.metrics}/20`],
+                ['Format & Panjang', `${analysisData.scores.format}/10`]
+            ];
+            
+            scoreItems.forEach(([label, score]) => {
+                doc.text(`${label}: ${score}`, 25, y);
+                y += 8;
+            });
+            
+            // Keywords
+            y += 10;
+            doc.setFontSize(14);
+            doc.setFont(undefined, 'bold');
+            doc.text('Kata Kunci Dikesan', 20, y);
+            doc.setFont(undefined, 'normal');
+            y += 10;
+            
+            const keywordsText = analysisData.keywords.map(k => k.word).join(', ');
+            const splitKeywords = doc.splitTextToSize(keywordsText, 170);
+            doc.setFontSize(10);
+            doc.text(splitKeywords, 25, y);
+            y += splitKeywords.length * 5 + 10;
+            
+            // Suggestions
+            if (y > 250) {
                 doc.addPage();
                 y = 20;
             }
-            doc.text(splitSuggestion, 25, y);
-            y += splitSuggestion.length * 5 + 3;
-        });
-        
-        // Footer
-        const pageCount = doc.internal.getNumberOfPages();
-        for (let i = 1; i <= pageCount; i++) {
-            doc.setPage(i);
-            doc.setFontSize(8);
-            doc.setTextColor(148, 163, 184);
-            doc.text(`Resume Analyzer Pro v6.5 • Halaman ${i} dari ${pageCount}`, 105, 290, { align: 'center' });
+            
+            doc.setFontSize(14);
+            doc.setFont(undefined, 'bold');
+            doc.text('Saranan Penambahbaikan', 20, y);
+            doc.setFont(undefined, 'normal');
+            y += 10;
+            
+            doc.setFontSize(10);
+            analysisData.suggestions.forEach((suggestion, idx) => {
+                const splitSuggestion = doc.splitTextToSize(`${idx + 1}. ${suggestion}`, 170);
+                if (y + splitSuggestion.length * 5 > 280) {
+                    doc.addPage();
+                    y = 20;
+                }
+                doc.text(splitSuggestion, 25, y);
+                y += splitSuggestion.length * 5 + 3;
+            });
+            
+            // Footer
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setTextColor(148, 163, 184);
+                doc.text(`Resume Analyzer Pro v6.5 • Halaman ${i} dari ${pageCount}`, 105, 290, { align: 'center' });
+            }
+            
+            doc.save(`resume-analysis-${new Date().toISOString().split('T')[0]}.pdf`);
+            showToast('Laporan PDF dimuat turun!');
         }
-        
-        doc.save(`resume-analysis-${new Date().toISOString().split('T')[0]}.pdf`);
-        showToast('Laporan PDF dimuat turun!');
-    }
 
-    // Close modals on backdrop click
-    document.querySelectorAll('.modal').forEach(modal => {
-        modal.addEventListener('click', e => {
-            if (e.target === modal) {
-                modal.classList.remove('active');
+        // Close modals on backdrop click
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', e => {
+                if (e.target === modal) {
+                    modal.classList.remove('active');
+                }
+            });
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.modal.active').forEach(m => m.classList.remove('active'));
             }
         });
-    });
-
-    // Keyboard shortcuts
-    document.addEventListener('keydown', e => {
-        if (e.key === 'Escape') {
-            document.querySelectorAll('.modal.active').forEach(m => m.classList.remove('active'));
-        }
-    });
-</script>
+    </script>
 </body>
-</html>
-
+    </html>
